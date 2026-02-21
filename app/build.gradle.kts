@@ -70,7 +70,10 @@ dependencies {
     // Material Design 3
     implementation(libs.material3)
 
-    // --- ¡ESTA ES LA QUE TE FALTA! ---
     // Necesaria para Icons.Outlined.Visibility, AccountCircle, etc.
     implementation(libs.androidx.material.icons.extended)
+    implementation(libs.material.icons.extended) // La que pusimos antes
+
+    // --- NUEVA: NAVEGACIÓN ---
+    implementation(libs.androidx.navigation.compose)
 }

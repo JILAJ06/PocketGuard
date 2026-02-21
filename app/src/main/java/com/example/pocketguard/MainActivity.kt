@@ -4,12 +4,17 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.pocketguard.screens.HomeScreen
 import com.example.pocketguard.screens.LoginScreen
 import com.example.pocketguard.screens.SignUpScreen
-import com.example.pocketguard.ui.theme.PocketGuardTheme 
+import com.example.pocketguard.ui.theme.PocketGuardTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -18,7 +23,7 @@ class MainActivity : ComponentActivity() {
             PocketGuardTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    // El color de fondo vendrá del tema automáticamente
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     PocketGuardNavigation()
                 }
@@ -27,36 +32,53 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// ... (El resto de PocketGuardNavigation queda igual)
-
 @Composable
 fun PocketGuardNavigation() {
-    // Estado para controlar la pantalla actual: "login" o "registro"
-    var currentScreen by remember { mutableStateOf("login") }
+    // 1. El Controlador: Es el cerebro que sabe dónde estamos
+    val navController = rememberNavController()
 
-    when (currentScreen) {
-        "login" -> {
+    // 2. El Host: Es el contenedor que cambia las pantallas
+    NavHost(
+        navController = navController,
+        startDestination = "login" // Pantalla inicial
+    ) {
+
+        // --- RUTA: LOGIN ---
+        composable("login") {
             LoginScreen(
                 onLoginClick = {
-                    // Aquí iría la lógica para entrar a la App (Home)
-                    println("Navegando al Home...")
+                    // Al hacer login, vamos al Home y borramos el historial para no volver al login con "Atrás"
+                    navController.navigate("home") {
+                        popUpTo("login") { inclusive = true }
+                    }
                 },
                 onRegisterLinkClick = {
-                    // CAMBIO DE VISTA: Vamos a Registro
-                    currentScreen = "registro"
+                    navController.navigate("registro")
                 },
-                onGoogleClick = { println("Google Login") }
+                onGoogleClick = { /* Futura lógica Google */ }
             )
         }
-        "registro" -> {
+
+        // --- RUTA: REGISTRO ---
+        composable("registro") {
             SignUpScreen(
-                onRegisterClick = { println("Registrando usuario...") },
-                onLoginLinkClick = {
-                    // CAMBIO DE VISTA: Volvemos a Login
-                    currentScreen = "login"
+                onRegisterClick = {
+                    // Al registrarse, también vamos al Home
+                    navController.navigate("home") {
+                        popUpTo("login") { inclusive = true }
+                    }
                 },
-                onGoogleClick = { println("Google Registro") }
+                onLoginLinkClick = {
+                    // Volver al login (popBackStack es como pulsar el botón Atrás)
+                    navController.popBackStack()
+                },
+                onGoogleClick = { /* Futura lógica Google */ }
             )
+        }
+
+        // --- RUTA: HOME (DASHBOARD) ---
+        composable("home") {
+            HomeScreen()
         }
     }
 }
