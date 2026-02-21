@@ -58,4 +58,19 @@ dependencies {
     //My dependencies
     implementation(libs.androidx.material3)
     implementation(libs.androidx.compose.material.icons.extended)
+    // BOM de Compose (Maneja las versiones por ti)
+    val composeBom = platform("androidx.compose:compose-bom:2023.08.00") // O una versión reciente
+    implementation(composeBom)
+
+    // UI Básica
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
+
+    // Material Design 3
+    implementation(libs.material3)
+
+    // --- ¡ESTA ES LA QUE TE FALTA! ---
+    // Necesaria para Icons.Outlined.Visibility, AccountCircle, etc.
+    implementation(libs.androidx.material.icons.extended)
 }

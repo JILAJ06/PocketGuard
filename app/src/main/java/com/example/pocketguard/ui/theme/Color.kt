@@ -9,3 +9,12 @@ val Pink80 = Color(0xFFEFB8C8)
 val Purple40 = Color(0xFF6650a4)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
+
+// My colors
+val GreenPrimary = Color(0xFF2ECC71)
+val BackgroundLight = Color(0xFFF8F9FA)
+val TextDark = Color(0xFF1E1E1E)
+val TextGray = Color(0xFF757575)
+val InputBackground = Color(0xFFF0F2F5)
+val White = Color(0xFFFFFFFF)
+val ErrorRed = Color(0xFFE74C3C)
