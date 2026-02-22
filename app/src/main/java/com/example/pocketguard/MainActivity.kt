@@ -34,49 +34,42 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun PocketGuardNavigation() {
-    // 1. El Controlador: Es el cerebro que sabe dónde estamos
     val navController = rememberNavController()
 
-    // 2. El Host: Es el contenedor que cambia las pantallas
     NavHost(
         navController = navController,
-        startDestination = "login" // Pantalla inicial
+        startDestination = "login" // Empezamos en login para probar el flujo
     ) {
 
-        // --- RUTA: LOGIN ---
+        // LOGIN
         composable("login") {
             LoginScreen(
                 onLoginClick = {
-                    // Al hacer login, vamos al Home y borramos el historial para no volver al login con "Atrás"
+                    // Navegar al HOME y borrar el historial de login
                     navController.navigate("home") {
                         popUpTo("login") { inclusive = true }
                     }
                 },
-                onRegisterLinkClick = {
-                    navController.navigate("registro")
-                },
-                onGoogleClick = { /* Futura lógica Google */ }
+                onRegisterLinkClick = { navController.navigate("registro") },
+                onGoogleClick = { /* ... */ }
             )
         }
 
-        // --- RUTA: REGISTRO ---
+        // REGISTRO
         composable("registro") {
             SignUpScreen(
                 onRegisterClick = {
-                    // Al registrarse, también vamos al Home
+                    // Al registrarse, vamos directo al HOME
                     navController.navigate("home") {
                         popUpTo("login") { inclusive = true }
                     }
                 },
-                onLoginLinkClick = {
-                    // Volver al login (popBackStack es como pulsar el botón Atrás)
-                    navController.popBackStack()
-                },
-                onGoogleClick = { /* Futura lógica Google */ }
+                onLoginLinkClick = { navController.popBackStack() },
+                onGoogleClick = { /* ... */ }
             )
         }
 
-        // --- RUTA: HOME (DASHBOARD) ---
+        // --- NUEVA RUTA: HOME ---
         composable("home") {
             HomeScreen()
         }
