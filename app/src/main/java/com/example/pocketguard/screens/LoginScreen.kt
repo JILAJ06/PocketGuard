@@ -3,43 +3,51 @@ package com.example.pocketguard.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.pocketguard.components.PocketGuardTextField
 import com.example.pocketguard.components.SocialButton
+import com.example.pocketguard.presentation.viewmodels.AuthViewModel
 
 @Composable
 fun LoginScreen(
     onLoginClick: () -> Unit,
     onRegisterLinkClick: () -> Unit,
-    onGoogleClick: () -> Unit
+    onGoogleClick: () -> Unit,
+    viewModel: AuthViewModel = viewModel()
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val authSuccess by viewModel.authSuccess.collectAsState()
+
+    // Observar éxito de autenticación
+    LaunchedEffect(authSuccess) {
+        if (authSuccess != null) {
+            // Guardaria token aquí en futuro
+            onLoginClick()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background) // Uso del tema
+            .background(MaterialTheme.colorScheme.background)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -68,26 +76,75 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         // --- Formulario ---
-        PocketGuardTextField(email, { email = it }, "Correo Electrónico", Icons.Default.Email, keyboardType = KeyboardType.Email)
+        PocketGuardTextField(
+            email,
+            { email = it },
+            "Correo Electrónico",
+            Icons.Default.Email,
+            keyboardType = KeyboardType.Email,
+            enabled = !isLoading
+        )
         Spacer(modifier = Modifier.height(16.dp))
-        PocketGuardTextField(password, { password = it }, "Contraseña", Icons.Default.Lock, isPassword = true)
+        PocketGuardTextField(
+            password,
+            { password = it },
+            "Contraseña",
+            Icons.Default.Lock,
+            isPassword = true,
+            enabled = !isLoading
+        )
 
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-            TextButton(onClick = { /* Lógica recuperar */ }) {
-                Text("¿Olvidaste tu contraseña?", color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
+            TextButton(onClick = { /* Lógica recuperar */ }, enabled = !isLoading) {
+                Text(
+                    "¿Olvidaste tu contraseña?",
+                    color = MaterialTheme.colorScheme.secondary,
+                    fontSize = 12.sp
+                )
             }
+        }
+
+        // --- Mensaje de error ---
+        if (errorMessage != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = errorMessage!!,
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 12.sp,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         // --- Botones ---
         Button(
-            onClick = onLoginClick,
-            modifier = Modifier.fillMaxWidth().height(50.dp),
+            onClick = {
+                if (email.isNotEmpty() && password.isNotEmpty()) {
+                    viewModel.login(email, password)
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+            enabled = !isLoading && email.isNotEmpty() && password.isNotEmpty()
         ) {
-            Text("Iniciar Sesión", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+            if (isLoading) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            } else {
+                Text(
+                    "Iniciar Sesión",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -100,73 +157,20 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        SocialButton(text = "Iniciar con Google", onClick = onGoogleClick)
+        SocialButton(text = "Iniciar con Google", onClick = onGoogleClick, enabled = !isLoading)
 
         Spacer(modifier = Modifier.height(32.dp))
 
         // --- Footer ---
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("¿No tienes cuenta?", color = MaterialTheme.colorScheme.secondary)
-            TextButton(onClick = onRegisterLinkClick) {
-                Text("Regístrate aquí", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            TextButton(onClick = onRegisterLinkClick, enabled = !isLoading) {
+                Text(
+                    "Regístrate aquí",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
-    }
-}
-
-@Composable
-fun PocketGuardTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    icon: ImageVector,
-    isPassword: Boolean = false,
-    keyboardType: KeyboardType = KeyboardType.Text
-) {
-    var passwordVisible by remember { mutableStateOf(false) }
-
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label, color = MaterialTheme.colorScheme.secondary) },
-        leadingIcon = { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-        trailingIcon = if (isPassword) {
-            {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(
-                        imageVector = if (passwordVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-                        contentDescription = "Toggle Password",
-                        tint = MaterialTheme.colorScheme.secondary
-                    )
-                }
-            }
-        } else null,
-        visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.Companion.None,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        shape = RoundedCornerShape(16.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = Color.Transparent,
-            focusedContainerColor = MaterialTheme.colorScheme.surface,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant // Color InputBackground definido en theme
-        ),
-        modifier = Modifier.fillMaxWidth()
-    )
-}
-
-@Composable
-fun SocialButton(
-    text: String,
-    onClick: () -> Unit
-) {
-    OutlinedButton(
-        onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth().height(50.dp),
-        colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Icon(Icons.Default.AccountCircle, contentDescription = null, tint = Color.Unspecified)
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text, color = MaterialTheme.colorScheme.onBackground)
     }
 }
