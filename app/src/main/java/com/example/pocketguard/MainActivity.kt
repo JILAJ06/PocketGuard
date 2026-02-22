@@ -1,5 +1,9 @@
 package com.example.pocketguard
 
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -23,6 +27,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.compose.rememberNavController
+import com.example.pocketguard.data.local.TokenManager
+import com.example.pocketguard.data.remote.RetrofitClient
+import com.example.pocketguard.data.repository.AuthRepository
+import com.example.pocketguard.presentation.navigation.NavGraph
+import com.example.pocketguard.presentation.navigation.Screen
+import com.example.pocketguard.presentation.viewmodel.AuthViewModel
+import com.example.pocketguard.ui.theme.PocketGuardTheme
 
 // --- 1. DEFINICIÓN DE COLORES (Basado en PocketGuard.pdf) ---
 val GreenPrimary = Color(0xFF2ECC71) // Verde vibrante similar al diseño
@@ -95,7 +108,7 @@ fun SocialButton(
 
 @Composable
 fun LoginScreen(
-    onLoginClick: () -> Unit,
+    onLoginClick: (String, String) -> Unit,
     onRegisterLinkClick: () -> Unit,
     onGoogleClick: () -> Unit
 ) {
@@ -149,7 +162,7 @@ fun LoginScreen(
 
         // Botón Principal
         Button(
-            onClick = onLoginClick,
+            onClick = { onLoginClick(email, password) },
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
@@ -187,7 +200,7 @@ fun LoginScreen(
 
 @Composable
 fun SignUpScreen(
-    onRegisterClick: () -> Unit,
+    onRegisterClick: (String, String, String) -> Unit,
     onLoginLinkClick: () -> Unit,
     onGoogleClick: () -> Unit
 ) {
@@ -248,7 +261,7 @@ fun SignUpScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = onRegisterClick,
+            onClick = { onRegisterClick(name, email, password) },
             enabled = isChecked, // Bloqueado hasta aceptar privacidad
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(16.dp),
@@ -283,15 +296,96 @@ fun AuthFlowPreview() {
 
     if (isLogin) {
         LoginScreen(
-            onLoginClick = {},
+            onLoginClick = { _, _ -> },
             onRegisterLinkClick = { isLogin = false },
             onGoogleClick = {}
         )
     } else {
         SignUpScreen(
-            onRegisterClick = {},
+            onRegisterClick = { _, _, _ -> },
             onLoginLinkClick = { isLogin = true },
             onGoogleClick = {}
         )
     }
 }
+
+// --- MAIN ACTIVITY ---
+
+class MainActivity : ComponentActivity() {
+
+    private lateinit var tokenManager: TokenManager
+    private lateinit var authRepository: AuthRepository
+    private lateinit var authViewModel: AuthViewModel
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // Inicializar TokenManager y Repository
+        tokenManager = TokenManager(applicationContext)
+        RetrofitClient.initialize(tokenManager)
+        authRepository = AuthRepository(tokenManager)
+        authViewModel = AuthViewModel(authRepository)
+
+        setContent {
+            PocketGuardTheme {
+                val navController = rememberNavController()
+                val authState by authViewModel.uiState.collectAsStateWithLifecycle()
+
+                // Determinar pantalla inicial basado en si hay token guardado
+                val startDestination = if (authState.isAuthenticated) {
+                    Screen.Home.route
+                } else {
+                    Screen.Login.route
+                }
+
+                // Manejar errores con Toast
+                LaunchedEffect(authState.errorMessage) {
+                    authState.errorMessage?.let { error ->
+                        Toast.makeText(
+                            this@MainActivity,
+                            error,
+                            Toast.LENGTH_LONG
+                        ).show()
+                        authViewModel.clearError()
+                    }
+                }
+
+                // Navegar a Home cuando el usuario se autentique
+                LaunchedEffect(authState.isAuthenticated) {
+                    if (authState.isAuthenticated) {
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    } else {
+                        // Si no está autenticado, ir a login
+                        if (navController.currentDestination?.route != Screen.Login.route &&
+                            navController.currentDestination?.route != Screen.SignUp.route) {
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    }
+                }
+
+                // Mostrar loading indicator si está cargando
+                if (authState.isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = GreenPrimary)
+                    }
+                } else {
+                    NavGraph(
+                        navController = navController,
+                        authViewModel = authViewModel,
+                        startDestination = startDestination
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+
