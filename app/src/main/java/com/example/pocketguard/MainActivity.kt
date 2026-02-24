@@ -1,5 +1,7 @@
 package com.example.pocketguard
 
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,7 +16,12 @@ import androidx.navigation.compose.rememberNavController
 import com.example.pocketguard.screens.HomeScreen
 import com.example.pocketguard.screens.LoginScreen
 import com.example.pocketguard.screens.SignUpScreen
+import com.example.pocketguard.screens.SubscriptionsScreen
+import com.example.pocketguard.screens.AddSubscriptionScreen
+import com.example.pocketguard.screens.AlertsScreen
+import com.example.pocketguard.screens.ExpensesScreen
 import com.example.pocketguard.ui.theme.PocketGuardTheme
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,13 +41,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun PocketGuardNavigation() {
-    // 1. El Controlador: Es el cerebro que sabe dónde estamos
     val navController = rememberNavController()
 
-    // 2. El Host: Es el contenedor que cambia las pantallas
     NavHost(
         navController = navController,
-        startDestination = "login" // Pantalla inicial
+        startDestination = "home"
     ) {
 
         // --- RUTA: LOGIN ---
@@ -79,6 +84,43 @@ fun PocketGuardNavigation() {
         // --- RUTA: HOME (DASHBOARD) ---
         composable("home") {
             HomeScreen()
+        }
+        // 1. ACTUALIZAR RUTA SUSCRIPCIONES
+        composable("suscripciones") {
+            SubscriptionsScreen(
+                onAddClick = { navController.navigate("add_subscription") },
+                onEditClick = { id ->
+                    // Navegar pasando el ID
+                    navController.navigate("add_subscription?id=$id")
+                }
+            )
+        }
+
+        // 2. ACTUALIZAR RUTA AGREGAR/EDITAR (Con argumento opcional)
+        composable(
+            route = "add_subscription?id={id}",
+            arguments = listOf(navArgument("id") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            })
+        ) { backStackEntry ->
+            // Extraer el ID (será null si es nuevo, o un String si es editar)
+            val subscriptionId = backStackEntry.arguments?.getString("id")
+
+            AddSubscriptionScreen(
+                subscriptionId = subscriptionId, // Pasamos el ID a la pantalla
+                onBackClick = { navController.popBackStack() },
+                onSaveClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        composable("gastos") {
+            ExpensesScreen()
+        }
+        composable("alertas") {
+            AlertsScreen()
         }
     }
 }

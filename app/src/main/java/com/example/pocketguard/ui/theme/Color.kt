@@ -18,3 +18,6 @@ val TextGray = Color(0xFF757575)
 val InputBackground = Color(0xFFF0F2F5)
 val White = Color(0xFFFFFFFF)
 val ErrorRed = Color(0xFFE74C3C)
+
+val DarkCardBackground = Color(0xFF1C2431)
+val BeigeItem = Color(0xFFF9F6F0)
