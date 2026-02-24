@@ -107,7 +107,7 @@ fun HomeHeaderSection() {
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // ... contenido de la tarjeta de balance ...
+
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),

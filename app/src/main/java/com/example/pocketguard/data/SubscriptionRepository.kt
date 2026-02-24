@@ -1,29 +1,46 @@
-package com.example.pocketguard.data
+package com.example.pocketguard.data // Asegúrate que el package sea correcto según tu estructura
 
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.graphics.Color
-import com.example.pocketguard.screens.Subscription // Importa tu modelo de datos
 import java.time.LocalDate
+import java.util.UUID
 
+// 1. MODELO DE DATOS (Adaptado a lo que usas en AddSubscriptionScreen)
+data class Subscription(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val monthlyPrice: Double,
+    val currentMonthPrice: Double, // Para cálculos anuales/mensuales
+    val nextPaymentDate: LocalDate,
+    val color: Color,
+    val category: String,
+    val icon: String = "", // Nombre del icono o identificador
+    val isActive: Boolean = true
+)
+
+// 2. REPOSITORIO (Simula la base de datos)
 object SubscriptionRepository {
-    // Lista mutable que notifica cambios a la UI automáticamente
-    private val _subscriptions = mutableStateListOf(
-        Subscription("1", "Netflix", "Entretenimiento", 199.0, 2388.0, LocalDate.of(2026, 2, 12), true, Color(0xFFE50914), "🎬"),
-        Subscription("2", "Spotify", "Música", 115.0, 1380.0, LocalDate.of(2026, 2, 12), true, Color(0xFF1DB954), "🎵"),
-        Subscription("3", "Amazon Prime", "Compras", 99.0, 1188.0, LocalDate.of(2026, 2, 15), true, Color(0xFFFF9900), "📦"),
-        Subscription("4", "HBO Max", "Streaming", 149.0, 1788.0, LocalDate.of(2026, 2, 9), true, Color(0xFF9146FF), "📺")
-    )
 
-    val subscriptions: List<Subscription> get() = _subscriptions
+    // Lista privada para guardar los datos en memoria
+    private val _subscriptions = mutableListOf<Subscription>()
 
-    fun getSubscription(id: String): Subscription? {
+    // --- FUNCIONES CRUD (Crear, Leer, Actualizar, Borrar) ---
+
+    // Obtener todas las suscripciones
+    fun getAllSubscriptions(): List<Subscription> {
+        return _subscriptions.toList()
+    }
+
+    // Obtener una suscripción por su ID (para editar)
+    fun getSubscriptionById(id: String): Subscription? {
         return _subscriptions.find { it.id == id }
     }
 
+    // Agregar una nueva suscripción
     fun addSubscription(subscription: Subscription) {
         _subscriptions.add(subscription)
     }
 
+    // Actualizar una suscripción existente
     fun updateSubscription(updatedSubscription: Subscription) {
         val index = _subscriptions.indexOfFirst { it.id == updatedSubscription.id }
         if (index != -1) {
@@ -31,7 +48,32 @@ object SubscriptionRepository {
         }
     }
 
+    // Eliminar una suscripción
     fun deleteSubscription(id: String) {
-        _subscriptions.removeAll { it.id == id }
+        _subscriptions.removeIf { it.id == id }
+    }
+
+    // (Opcional) Datos de prueba iniciales para que no se vea vacío
+    init {
+        _subscriptions.add(
+            Subscription(
+                name = "Netflix",
+                monthlyPrice = 199.0,
+                currentMonthPrice = 199.0,
+                nextPaymentDate = LocalDate.now().plusDays(5),
+                color = Color(0xFFE50914),
+                category = "Entretenimiento"
+            )
+        )
+        _subscriptions.add(
+            Subscription(
+                name = "Spotify",
+                monthlyPrice = 115.0,
+                currentMonthPrice = 115.0,
+                nextPaymentDate = LocalDate.now().plusDays(12),
+                color = Color(0xFF1DB954),
+                category = "Música"
+            )
+        )
     }
 }

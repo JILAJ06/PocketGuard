@@ -21,3 +21,10 @@ val ErrorRed = Color(0xFFE74C3C)
 
 val DarkCardBackground = Color(0xFF1C2431)
 val BeigeItem = Color(0xFFF9F6F0)
+// Colores de Marcas
+val BrandNetflix = Color(0xFFE50914)
+val BrandSpotify = Color(0xFF1DB954)
+val BrandAmazon = Color(0xFFFF9900)
+val BrandHBO = Color(0xFF9146FF)
+val BrandDisney = Color(0xFF0063E5)
+val BrandApple = Color(0xFF000000)
