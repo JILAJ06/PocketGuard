@@ -33,8 +33,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 
+// Cambia la firma de HomeScreen para recibir el callback
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    onOpenDrawer: () -> Unit = {} // Nuevo parámetro con valor por defecto
+) {
     Scaffold(
         containerColor = BackgroundLight
     ) { paddingValues ->
@@ -44,46 +47,29 @@ fun HomeScreen() {
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            // 1. Cabecera y Tarjeta Principal
+            // Pasamos el evento al Header
             HomeHeaderSection()
 
+            // ... (Resto del contenido igual: Spacer, QuickStatsRow, etc.) ...
             Spacer(modifier = Modifier.height(16.dp))
 
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-
-                // 2. Filas de Accesos Rápidos
                 QuickStatsRow()
-
                 Spacer(modifier = Modifier.height(20.dp))
-
-                // 3. Próximos Cargos
                 UpcomingChargesSection()
-
                 Spacer(modifier = Modifier.height(20.dp))
-
-                // 4. Tendencia Mensual (AHORA INTERACTIVA)
                 MonthlyTrendSection()
-
                 Spacer(modifier = Modifier.height(20.dp))
-
-                // 5. Actividad Reciente
                 RecentActivitySection()
-
                 Spacer(modifier = Modifier.height(24.dp))
-
-                // 6. Análisis Inteligente
                 SmartAnalysisSection()
-
                 Spacer(modifier = Modifier.height(80.dp))
             }
         }
     }
 }
 
-// ==========================================
-// SECCIONES (COMPONENTES)
-// ==========================================
-
+// Actualiza el Header para tener el icono de Menú
 @Composable
 fun HomeHeaderSection() {
     Box(
@@ -98,10 +84,13 @@ fun HomeHeaderSection() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Lado Izquierdo: SOLO TEXTO (Sin icono menú)
                 Column {
                     Text("PocketGuard", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = White)
                     Text("Gestor de Gastos", fontSize = 12.sp, color = White.copy(alpha = 0.8f))
                 }
+
+                // Lado Derecho: Avatar
                 Box(
                     modifier = Modifier.size(40.dp).clip(CircleShape).background(White.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
@@ -110,14 +99,15 @@ fun HomeHeaderSection() {
                 }
             }
 
+            // ... (El resto de la tarjeta de balance se queda IGUAL) ...
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Tarjeta de Balance
             Card(
                 colors = CardDefaults.cardColors(containerColor = White),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
+                // ... contenido de la tarjeta de balance ...
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -150,6 +140,9 @@ fun HomeHeaderSection() {
     }
 }
 
+// ==========================================
+// SECCIONES (COMPONENTES)
+// ==========================================
 @Composable
 fun QuickStatsRow() {
     Row(
