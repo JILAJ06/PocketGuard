@@ -1,18 +1,16 @@
 package com.example.pocketguard.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,9 +29,9 @@ data class SubscriptionUI(
     val id: String,
     val name: String,
     val price: String,
-    val cycle: String, // "Mensual", "Anual"
-    val nextDate: String, // Nueva: Para saber cuando cobrar
-    val categoryName: String, // Nueva: Para preseleccionar categoría
+    val cycle: String,
+    val nextDate: String,
+    val categoryName: String,
     val daysLeft: Int,
     val icon: ImageVector,
     val color: Color
@@ -41,17 +39,18 @@ data class SubscriptionUI(
 
 @Composable
 fun SubscriptionsScreen(
-    // Ya no necesitamos onEditClick para navegación externa
     onAddClick: () -> Unit = {},
     onEditClick: (String) -> Unit = {}
 ) {
-    // --- ESTADO LOCAL ---
+    // --- ESTADOS LOCALES ---
     var showNewSubscriptionModal by remember { mutableStateOf(false) }
-
-    // Variable para saber qué suscripción estamos editando (null = Nueva)
     var selectedSubscription by remember { mutableStateOf<SubscriptionUI?>(null) }
 
-    // Datos Mock (Actualizados para incluir categoría y fecha)
+    // Estados para Eliminación
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var subscriptionToDelete by remember { mutableStateOf<SubscriptionUI?>(null) }
+
+    // Datos Mock
     val subscriptions = remember {
         mutableStateListOf(
             SubscriptionUI("1", "Netflix Premium", "199", "Mensual", "10/03/2026", "Entretenimiento", 4, Icons.Default.Movie, BrandNetflix),
@@ -66,12 +65,57 @@ fun SubscriptionsScreen(
         .sumOf { it.price.toIntOrNull() ?: 0 } +
             (subscriptions.filter { it.cycle == "Anual" }.sumOf { it.price.toIntOrNull() ?: 0 } / 12)
 
+    // --- ALERTA DE ELIMINACIÓN ---
+    if (showDeleteDialog && subscriptionToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            containerColor = White,
+            icon = { Icon(Icons.Outlined.Delete, contentDescription = null, tint = ErrorRed) },
+            title = {
+                Text(
+                    text = "Eliminar Suscripción",
+                    fontWeight = FontWeight.Bold,
+                    color = TextDark,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "¿Estás seguro de que deseas eliminar ${subscriptionToDelete?.name}? Esta acción no se puede deshacer.",
+                    color = TextGray,
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Lógica de eliminación
+                        subscriptions.remove(subscriptionToDelete)
+                        showDeleteDialog = false
+                        subscriptionToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ErrorRed),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Eliminar", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog = false }
+                ) {
+                    Text("Cancelar", color = TextDark, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
     Scaffold(
         containerColor = BackgroundLight,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    selectedSubscription = null // Importante: Limpiamos selección para crear nueva
+                    selectedSubscription = null
                     showNewSubscriptionModal = true
                 },
                 containerColor = GreenPrimary,
@@ -103,10 +147,12 @@ fun SubscriptionsScreen(
                     SubscriptionPremiumCard(
                         subscription = sub,
                         onClick = {
-                            // --- AQUÍ ESTÁ LA MAGIA ---
-                            // En lugar de navegar, guardamos la sub en la variable y abrimos el modal
                             selectedSubscription = sub
                             showNewSubscriptionModal = true
+                        },
+                        onLongClick = { // <--- NUEVO EVENTO
+                            subscriptionToDelete = sub
+                            showDeleteDialog = true
                         }
                     )
                 }
@@ -115,32 +161,25 @@ fun SubscriptionsScreen(
         }
     }
 
-    // --- LOGICA DEL MODAL ---
+    // --- LOGICA DEL MODAL DE CREACIÓN/EDICIÓN ---
     if (showNewSubscriptionModal) {
         NewSubscriptionModal(
-            // Pasamos los datos iniciales si estamos editando
             initialName = selectedSubscription?.name ?: "",
             initialPrice = selectedSubscription?.price ?: "",
             initialCategory = selectedSubscription?.categoryName ?: "",
             initialCycle = selectedSubscription?.cycle ?: "Mensual",
-            initialDate = selectedSubscription?.nextDate ?: "dd/MM/yyyy", // O fecha de hoy si es nueva
+            initialDate = selectedSubscription?.nextDate ?: "dd/MM/yyyy",
 
             onDismiss = { showNewSubscriptionModal = false },
             onSave = { name, price, category, cycle, date ->
                 if (selectedSubscription != null) {
-                    // --- LÓGICA DE ACTUALIZAR ---
                     val index = subscriptions.indexOfFirst { it.id == selectedSubscription!!.id }
                     if (index != -1) {
                         subscriptions[index] = subscriptions[index].copy(
-                            name = name,
-                            price = price,
-                            cycle = cycle,
-                            nextDate = date,
-                            categoryName = category
+                            name = name, price = price, cycle = cycle, nextDate = date, categoryName = category
                         )
                     }
                 } else {
-                    // --- LÓGICA DE CREAR NUEVO ---
                     subscriptions.add(
                         SubscriptionUI(
                             id = (subscriptions.size + 1).toString(),
@@ -149,7 +188,7 @@ fun SubscriptionsScreen(
                             cycle = cycle,
                             nextDate = date,
                             categoryName = category,
-                            daysLeft = 30, // Calculo pendiente
+                            daysLeft = 30,
                             icon = Icons.Default.CreditCard,
                             color = GreenPrimary
                         )
@@ -162,7 +201,7 @@ fun SubscriptionsScreen(
 }
 
 // ==========================================
-// COMPONENTES UI (Header y Card se mantienen casi igual)
+// COMPONENTES UI
 // ==========================================
 
 @Composable
@@ -197,8 +236,13 @@ fun SubscriptionsHeader(total: String) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class) // Necesario para combinedClickable
 @Composable
-fun SubscriptionPremiumCard(subscription: SubscriptionUI, onClick: () -> Unit) {
+fun SubscriptionPremiumCard(
+    subscription: SubscriptionUI,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit // <--- Nuevo parámetro
+) {
     val isUrgent = subscription.daysLeft <= 5
 
     Card(
@@ -207,7 +251,12 @@ fun SubscriptionPremiumCard(subscription: SubscriptionUI, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(2.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clip(RoundedCornerShape(20.dp)) // Importante para el ripple effect
+            // Usamos combinedClickable en lugar de clickable simple
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
     ) {
         Row(
             modifier = Modifier
