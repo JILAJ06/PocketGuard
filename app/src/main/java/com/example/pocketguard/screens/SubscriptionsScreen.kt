@@ -1,7 +1,6 @@
 package com.example.pocketguard.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,9 +10,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,8 +23,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.pocketguard.ui.theme.*
 import com.example.pocketguard.components.NewSubscriptionModal
+import com.example.pocketguard.ui.theme.*
 
 // Modelo de datos para la UI
 data class SubscriptionUI(
@@ -33,6 +32,8 @@ data class SubscriptionUI(
     val name: String,
     val price: String,
     val cycle: String, // "Mensual", "Anual"
+    val nextDate: String, // Nueva: Para saber cuando cobrar
+    val categoryName: String, // Nueva: Para preseleccionar categoría
     val daysLeft: Int,
     val icon: ImageVector,
     val color: Color
@@ -40,17 +41,25 @@ data class SubscriptionUI(
 
 @Composable
 fun SubscriptionsScreen(
-    onAddClick: () -> Unit,
-    onEditClick: (String) -> Unit
+    // Ya no necesitamos onEditClick para navegación externa
+    onAddClick: () -> Unit = {},
+    onEditClick: (String) -> Unit = {}
 ) {
+    // --- ESTADO LOCAL ---
     var showNewSubscriptionModal by remember { mutableStateOf(false) }
-    // Datos Mock (Simulados)
-    val subscriptions = listOf(
-        SubscriptionUI("1", "Netflix Premium", "199", "Mensual", 4, Icons.Default.Movie, BrandNetflix),
-        SubscriptionUI("2", "Spotify Duo", "149", "Mensual", 12, Icons.Default.MusicNote, BrandSpotify),
-        SubscriptionUI("3", "Amazon Prime", "899", "Anual", 245, Icons.Default.ShoppingCart, BrandAmazon),
-        SubscriptionUI("4", "HBO Max", "179", "Mensual", 2, Icons.Default.Movie, BrandHBO)
-    )
+
+    // Variable para saber qué suscripción estamos editando (null = Nueva)
+    var selectedSubscription by remember { mutableStateOf<SubscriptionUI?>(null) }
+
+    // Datos Mock (Actualizados para incluir categoría y fecha)
+    val subscriptions = remember {
+        mutableStateListOf(
+            SubscriptionUI("1", "Netflix Premium", "199", "Mensual", "10/03/2026", "Entretenimiento", 4, Icons.Default.Movie, BrandNetflix),
+            SubscriptionUI("2", "Spotify Duo", "149", "Mensual", "15/03/2026", "Música", 12, Icons.Default.MusicNote, BrandSpotify),
+            SubscriptionUI("3", "Amazon Prime", "899", "Anual", "20/10/2026", "Compras", 245, Icons.Default.ShoppingCart, BrandAmazon),
+            SubscriptionUI("4", "HBO Max", "179", "Mensual", "05/03/2026", "Entretenimiento", 2, Icons.Default.Movie, BrandHBO)
+        )
+    }
 
     val totalMonthly = subscriptions
         .filter { it.cycle == "Mensual" }
@@ -61,7 +70,10 @@ fun SubscriptionsScreen(
         containerColor = BackgroundLight,
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { showNewSubscriptionModal = true }, // <--- AHORA ABRE EL MODAL
+                onClick = {
+                    selectedSubscription = null // Importante: Limpiamos selección para crear nueva
+                    showNewSubscriptionModal = true
+                },
                 containerColor = GreenPrimary,
                 contentColor = White,
                 shape = CircleShape,
@@ -90,27 +102,67 @@ fun SubscriptionsScreen(
                 items(subscriptions) { sub ->
                     SubscriptionPremiumCard(
                         subscription = sub,
-                        onClick = { onEditClick(sub.id) }
+                        onClick = {
+                            // --- AQUÍ ESTÁ LA MAGIA ---
+                            // En lugar de navegar, guardamos la sub en la variable y abrimos el modal
+                            selectedSubscription = sub
+                            showNewSubscriptionModal = true
+                        }
                     )
                 }
                 item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
-        if (showNewSubscriptionModal) {
-            NewSubscriptionModal(
-                onDismiss = { showNewSubscriptionModal = false },
-                onSave = { name, price, category, cycle ->
-                    // Aquí iría la lógica para guardar en el repositorio
-                    // Por ahora solo cerramos el modal
-                    showNewSubscriptionModal = false
+    }
+
+    // --- LOGICA DEL MODAL ---
+    if (showNewSubscriptionModal) {
+        NewSubscriptionModal(
+            // Pasamos los datos iniciales si estamos editando
+            initialName = selectedSubscription?.name ?: "",
+            initialPrice = selectedSubscription?.price ?: "",
+            initialCategory = selectedSubscription?.categoryName ?: "",
+            initialCycle = selectedSubscription?.cycle ?: "Mensual",
+            initialDate = selectedSubscription?.nextDate ?: "dd/MM/yyyy", // O fecha de hoy si es nueva
+
+            onDismiss = { showNewSubscriptionModal = false },
+            onSave = { name, price, category, cycle, date ->
+                if (selectedSubscription != null) {
+                    // --- LÓGICA DE ACTUALIZAR ---
+                    val index = subscriptions.indexOfFirst { it.id == selectedSubscription!!.id }
+                    if (index != -1) {
+                        subscriptions[index] = subscriptions[index].copy(
+                            name = name,
+                            price = price,
+                            cycle = cycle,
+                            nextDate = date,
+                            categoryName = category
+                        )
+                    }
+                } else {
+                    // --- LÓGICA DE CREAR NUEVO ---
+                    subscriptions.add(
+                        SubscriptionUI(
+                            id = (subscriptions.size + 1).toString(),
+                            name = name,
+                            price = price,
+                            cycle = cycle,
+                            nextDate = date,
+                            categoryName = category,
+                            daysLeft = 30, // Calculo pendiente
+                            icon = Icons.Default.CreditCard,
+                            color = GreenPrimary
+                        )
+                    )
                 }
-            )
-        }
+                showNewSubscriptionModal = false
+            }
+        )
     }
 }
 
 // ==========================================
-// COMPONENTES UI
+// COMPONENTES UI (Header y Card se mantienen casi igual)
 // ==========================================
 
 @Composable
