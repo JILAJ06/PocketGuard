@@ -317,7 +317,6 @@ fun NewSubscriptionModal(
 
 // ... (Los Componentes Auxiliares BigCategoryItem, CategoryFormDialog, etc. se mantienen igual) ...
 // Asegúrate de tener los componentes auxiliares que definimos en el mensaje anterior aquí abajo.
-
 // ==========================================
 // COMPONENTES AUXILIARES
 // ==========================================
