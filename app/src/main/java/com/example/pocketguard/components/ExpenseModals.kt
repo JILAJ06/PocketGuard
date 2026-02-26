@@ -37,291 +37,39 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.pocketguard.ui.theme.*
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-// ==========================================
-// COMPONENTES AUXILIARES
-// ==========================================
+// Estructura de datos
+data class ExpenseCategoryData(val name: String, val icon: ImageVector, val color: Color)
 
-data class CategoryData(val name: String, val icon: ImageVector, val color: Color)
-
-@Composable
-fun ExpenseLabel(text: String, icon: ImageVector? = null) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
-        if (icon != null) {
-            Icon(icon, null, tint = GreenPrimary, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-        }
-        Text(text, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
-    }
-}
-
-@Composable
-fun ExpenseInput(value: String, onValueChange: (String) -> Unit, placeholder: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .background(InputBackground, RoundedCornerShape(16.dp))
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        if (value.isEmpty()) Text(placeholder, color = TextGray.copy(alpha = 0.5f), fontSize = 14.sp)
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            textStyle = TextStyle(fontSize = 16.sp, color = TextDark),
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-fun CategoryItem(data: CategoryData, isSelected: Boolean, onClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null
-        ) { onClick() }
-    ) {
-        Box(
-            modifier = Modifier.size(64.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(4.dp)
-                    .border(
-                        width = if (isSelected) 2.dp else 1.dp,
-                        color = if (isSelected) GreenPrimary else InputBackground,
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    .background(
-                        color = data.color.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(16.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = data.icon,
-                    contentDescription = null,
-                    tint = data.color,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-            if (isSelected) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .size(22.dp)
-                        .background(GreenPrimary, CircleShape)
-                        .border(2.dp, White, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Check,
-                        contentDescription = null,
-                        tint = White,
-                        modifier = Modifier.size(12.dp)
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = data.name,
-            fontSize = 10.sp,
-            color = if (isSelected) GreenPrimary else TextGray,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-            maxLines = 1,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
-fun NewCategoryButton(onClick: () -> Unit) {
-    val stroke = Stroke(width = 4f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable { onClick() }
-    ) {
-        Box(
-            modifier = Modifier.size(64.dp).padding(4.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawRoundRect(color = GreenPrimary, style = stroke, cornerRadius = CornerRadius(16.dp.toPx()))
-            }
-            Icon(Icons.Default.Add, contentDescription = null, tint = GreenPrimary)
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text("Nueva", fontSize = 10.sp, color = GreenPrimary, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-fun IconSelectorItem(icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
-    // Aumentamos un poco el tamaño del selector de icono (de 40dp a 48dp)
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .border(1.dp, if (isSelected) GreenPrimary else InputBackground, RoundedCornerShape(12.dp))
-            .background(if (isSelected) GreenPrimary.copy(alpha = 0.1f) else White, RoundedCornerShape(12.dp))
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(icon, null, tint = if(isSelected) GreenPrimary else TextGray, modifier = Modifier.size(24.dp))
-    }
-}
-
-@Composable
-fun ColorSelectorItem(color: Color, isSelected: Boolean, onClick: () -> Unit) {
-    // Aumentamos el tamaño de la burbuja de color (de 36dp a 42dp)
-    Box(
-        modifier = Modifier
-            .size(42.dp)
-            .background(color, RoundedCornerShape(12.dp))
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        if (isSelected) {
-            Icon(Icons.Default.Check, null, tint = White, modifier = Modifier.size(24.dp))
-        }
-    }
-}
-
-// ==========================================
-// 1. MODAL DE NUEVA CATEGORÍA (AMPLIADO)
-// ==========================================
-@Composable
-fun NewCategoryDialog(
-    onDismiss: () -> Unit,
-    onSave: (String, ImageVector, Color) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var selectedIcon by remember { mutableStateOf(Icons.Outlined.Coffee) }
-    var selectedColor by remember { mutableStateOf(GreenPrimary) }
-
-    val icons = listOf(Icons.Outlined.Coffee, Icons.Outlined.Fastfood, Icons.Outlined.DirectionsCar, Icons.Outlined.Flight, Icons.Outlined.ShoppingCart, Icons.Outlined.CardGiftcard, Icons.Outlined.Checkroom, Icons.Outlined.Movie, Icons.Outlined.FavoriteBorder, Icons.Outlined.Home, Icons.Outlined.Book, Icons.Outlined.Smartphone, Icons.Outlined.Pets, Icons.Outlined.SportsSoccer, Icons.Outlined.LocalHospital)
-    val colors = listOf(Color(0xFF00A4EF), Color(0xFF2ECC71), Color(0xFFFF9900), Color(0xFF9146FF), Color(0xFFE50914), Color(0xFFE91E63), Color(0xFF34495E), Color(0xFF95A5A6), Color(0xFF1ABC9C))
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = White),
-            shape = RoundedCornerShape(28.dp),
-            // Hacemos el modal más ancho y alto
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp) // Reducimos el padding externo para ganar ancho
-                .heightIn(min = 550.dp) // Altura mínima forzada para que no se vea aplastado
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState()), // Agregamos scroll por si acaso en pantallas pequeñas
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier.size(48.dp).background(GreenPrimary, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = White, modifier = Modifier.size(24.dp))
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text("Nueva Categoría", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
-                            Text("Personaliza tu estilo", fontSize = 13.sp, color = TextGray)
-                        }
-                    }
-                    IconButton(onClick = onDismiss, modifier = Modifier.background(InputBackground, CircleShape)) {
-                        Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = TextGray)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Input Nombre
-                Column(horizontalAlignment = Alignment.Start, modifier = Modifier.fillMaxWidth()) {
-                    ExpenseLabel("Nombre de la Categoría")
-                    ExpenseInput(value = name, onValueChange = { name = it }, placeholder = "Ej: Mascotas, Deportes...")
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Selector Iconos (Más grande)
-                Column(horizontalAlignment = Alignment.Start, modifier = Modifier.fillMaxWidth()) {
-                    ExpenseLabel("Selecciona un Icono")
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(48.dp), // Celdas un poco más grandes
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.height(200.dp) // AUMENTADO de 120dp a 200dp
-                    ) {
-                        items(icons.size) { index ->
-                            IconSelectorItem(icons[index], selectedIcon == icons[index]) { selectedIcon = icons[index] }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Selector Colores (Más grande)
-                Column(horizontalAlignment = Alignment.Start, modifier = Modifier.fillMaxWidth()) {
-                    ExpenseLabel("Elige un Color")
-                    // Usamos FlowRow o una Grid para que no se corten
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(42.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.height(100.dp)
-                    ) {
-                        items(colors.size) { index ->
-                            ColorSelectorItem(colors[index], selectedColor == colors[index]) { selectedColor = colors[index] }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(40.dp))
-
-                // Botón Crear
-                Button(
-                    onClick = { onSave(name, selectedIcon, selectedColor) },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
-                    enabled = name.isNotEmpty()
-                ) {
-                    Text("Crear Categoría", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-    }
-}
-
-// ==========================================
-// 2. MODAL DE NUEVO GASTO
-// ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewExpenseModal(
     onDismiss: () -> Unit,
-    onNewCategoryClick: () -> Unit
+    onSave: (String, String, String, String) -> Unit, // Desc, Monto, Categoria, Fecha
+    onNewCategoryClick: () -> Unit // (Opcional, ya que lo manejamos interno ahora)
 ) {
     var description by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var selectedCategoryIndex by remember { mutableStateOf(0) }
+
+    // --- ESTADO PARA NUEVA CATEGORÍA ---
+    var showNewCategoryDialog by remember { mutableStateOf(false) }
+
+    // Lista Mutable para poder agregar categorías
+    val categories = remember {
+        mutableStateListOf(
+            ExpenseCategoryData("Alimentos", Icons.Outlined.Fastfood, Color(0xFFFFA500)),
+            ExpenseCategoryData("Transporte", Icons.Outlined.DirectionsCar, Color(0xFF2ECC71)),
+            ExpenseCategoryData("Compras", Icons.Outlined.ShoppingBag, Color(0xFF9146FF)),
+            ExpenseCategoryData("Hogar", Icons.Outlined.Home, Color(0xFF00A4EF)),
+            ExpenseCategoryData("Ocio", Icons.Outlined.Movie, Color(0xFFE74C3C)),
+            ExpenseCategoryData("Salud", Icons.Outlined.FavoriteBorder, Color(0xFFE91E63)),
+            ExpenseCategoryData("Educación", Icons.Outlined.School, Color(0xFF34495E)),
+            ExpenseCategoryData("Otros", Icons.Outlined.MoreHoriz, Color(0xFF95A5A6))
+        )
+    }
 
     val amountFocusRequester = remember { FocusRequester() }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -332,24 +80,14 @@ fun NewExpenseModal(
 
     val datePickerState = rememberDatePickerState()
 
-    val categories = listOf(
-        CategoryData("Alimentos", Icons.Outlined.Fastfood, Color(0xFFFFA500)),
-        CategoryData("Transporte", Icons.Outlined.DirectionsCar, Color(0xFF2ECC71)),
-        CategoryData("Compras", Icons.Outlined.ShoppingBag, Color(0xFF9146FF)),
-        CategoryData("Hogar", Icons.Outlined.Home, Color(0xFF00A4EF)),
-        CategoryData("Ocio", Icons.Outlined.Movie, Color(0xFFE74C3C)),
-        CategoryData("Salud", Icons.Outlined.FavoriteBorder, Color(0xFFE91E63)),
-        CategoryData("Educación", Icons.Outlined.School, Color(0xFF34495E)),
-        CategoryData("Otros", Icons.Outlined.MoreHoriz, Color(0xFF95A5A6))
-    )
-
+    // Calendario Logica
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        val date = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+                        val date = java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
                         selectedDateDisplay = date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
                     }
                     showDatePicker = false
@@ -358,8 +96,21 @@ fun NewExpenseModal(
             dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancelar", color = TextGray) } },
             colors = DatePickerDefaults.colors(containerColor = White)
         ) {
-            DatePicker(state = datePickerState, colors = DatePickerDefaults.colors(selectedDayContainerColor = GreenPrimary, todayDateBorderColor = GreenPrimary, todayContentColor = GreenPrimary))
+            DatePicker(state = datePickerState)
         }
+    }
+
+    // --- DIÁLOGO DE CREAR CATEGORÍA (Integrado) ---
+    if (showNewCategoryDialog) {
+        NewCategoryDialog(
+            onDismiss = { showNewCategoryDialog = false },
+            onSave = { name, icon, color ->
+                // Agregar a la lista y seleccionar
+                categories.add(ExpenseCategoryData(name, icon, color))
+                selectedCategoryIndex = categories.lastIndex
+                showNewCategoryDialog = false
+            }
+        )
     }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
@@ -387,29 +138,37 @@ fun NewExpenseModal(
             Spacer(modifier = Modifier.height(20.dp))
 
             Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                // Descripción
+
+                // 1. Descripción
                 ExpenseLabel("Descripción", Icons.Outlined.Description)
-                ExpenseInput(value = description, onValueChange = { description = it }, placeholder = "Ej: Café con amigos, Uber...")
+                ExpenseInput(value = description, onValueChange = { description = it }, placeholder = "Ej: Café, Uber, Supermercado...")
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Categorías
+                // 2. Categorías (Grid 3 columnas + Botón Nueva)
                 ExpenseLabel("Selecciona Categoría", Icons.Outlined.Category)
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    columns = GridCells.Fixed(3),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.height(240.dp)
+                    modifier = Modifier.height(360.dp)
                 ) {
                     items(categories.size) { index ->
-                        CategoryItem(data = categories[index], isSelected = selectedCategoryIndex == index, onClick = { selectedCategoryIndex = index })
+                        BigExpenseCategoryItem(
+                            data = categories[index],
+                            isSelected = selectedCategoryIndex == index,
+                            onClick = { selectedCategoryIndex = index }
+                        )
                     }
-                    item { NewCategoryButton(onClick = onNewCategoryClick) }
+                    // Botón para agregar categoría
+                    item {
+                        NewCategorySquareButton(onClick = { showNewCategoryDialog = true })
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Monto
+                // 3. Monto
                 ExpenseLabel("Monto del Gasto", Icons.Outlined.AttachMoney)
                 Box(
                     modifier = Modifier.fillMaxWidth().height(56.dp).background(InputBackground, RoundedCornerShape(16.dp))
@@ -433,7 +192,7 @@ fun NewExpenseModal(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Fecha
+                // 4. Fecha
                 ExpenseLabel("Fecha del Gasto", Icons.Outlined.Event)
                 Box(
                     modifier = Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(16.dp)).background(InputBackground)
@@ -450,7 +209,8 @@ fun NewExpenseModal(
 
                 // Botón
                 Button(
-                    onClick = onDismiss, modifier = Modifier.fillMaxWidth().height(56.dp),
+                    onClick = { onSave(description, amount, categories[selectedCategoryIndex].name, selectedDateDisplay) },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
                     enabled = amount.isNotEmpty() && description.isNotEmpty()
                 ) {
@@ -459,5 +219,109 @@ fun NewExpenseModal(
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }
+    }
+}
+
+// ==========================================
+// COMPONENTES VISUALES
+// ==========================================
+
+@Composable
+fun BigExpenseCategoryItem(data: ExpenseCategoryData, isSelected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .border(width = if (isSelected) 2.dp else 1.dp, color = if (isSelected) GreenPrimary else InputBackground, shape = RoundedCornerShape(16.dp))
+            .background(color = if (isSelected) GreenPrimary.copy(alpha = 0.05f) else White, shape = RoundedCornerShape(16.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(modifier = Modifier.size(48.dp).background(data.color.copy(alpha = 0.2f), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(data.icon, null, tint = data.color, modifier = Modifier.size(24.dp))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(data.name, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = TextDark)
+        }
+        if (isSelected) {
+            Box(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(20.dp).background(GreenPrimary, CircleShape).border(2.dp, White, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Check, null, tint = White, modifier = Modifier.size(12.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun NewCategorySquareButton(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .border(1.dp, GreenPrimary, RoundedCornerShape(16.dp))
+            .background(White, RoundedCornerShape(16.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(modifier = Modifier.size(48.dp).background(InputBackground, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Add, null, tint = GreenPrimary, modifier = Modifier.size(24.dp))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Nueva", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = GreenPrimary)
+        }
+    }
+}
+
+// ... (NewCategoryDialog, ExpenseLabel, ExpenseInput se mantienen igual o se reutilizan)
+// NOTA: Asegúrate de tener NewCategoryDialog en este archivo o importado. Si falta, cópialo del paso anterior.
+@Composable
+fun NewCategoryDialog(
+    onDismiss: () -> Unit,
+    onSave: (String, ImageVector, Color) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var selectedIcon by remember { mutableStateOf(Icons.Outlined.Coffee) }
+    var selectedColor by remember { mutableStateOf(GreenPrimary) }
+
+    val icons = listOf(Icons.Outlined.Coffee, Icons.Outlined.Fastfood, Icons.Outlined.DirectionsCar, Icons.Outlined.Flight, Icons.Outlined.ShoppingCart, Icons.Outlined.CardGiftcard, Icons.Outlined.Checkroom, Icons.Outlined.Movie, Icons.Outlined.FavoriteBorder, Icons.Outlined.Home, Icons.Outlined.Book, Icons.Outlined.Smartphone)
+    val colors = listOf(Color(0xFF00A4EF), Color(0xFF2ECC71), Color(0xFFFF9900), Color(0xFF9146FF), Color(0xFFE50914), Color(0xFFE91E63), Color(0xFF34495E), Color(0xFF95A5A6), Color(0xFF1ABC9C))
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth().padding(4.dp)) {
+            Column(modifier = Modifier.padding(24.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Nueva Categoría", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
+                Spacer(modifier = Modifier.height(24.dp))
+                ExpenseLabel("Nombre")
+                ExpenseInput(value = name, onValueChange = { name = it }, placeholder = "Ej: Viajes...")
+                Spacer(modifier = Modifier.height(24.dp))
+                ExpenseLabel("Icono")
+                LazyVerticalGrid(columns = GridCells.Adaptive(40.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.height(120.dp)) {
+                    items(icons.size) { index -> Box(modifier = Modifier.size(40.dp).background(if (selectedIcon == icons[index]) GreenPrimary.copy(0.2f) else InputBackground, RoundedCornerShape(8.dp)).clickable { selectedIcon = icons[index] }, contentAlignment = Alignment.Center) { Icon(icons[index], null, tint = if(selectedIcon == icons[index]) GreenPrimary else TextGray) } }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+                ExpenseLabel("Color")
+                LazyVerticalGrid(columns = GridCells.Adaptive(40.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.height(100.dp)) {
+                    items(colors.size) { index -> Box(modifier = Modifier.size(40.dp).background(colors[index], RoundedCornerShape(8.dp)).clickable { selectedColor = colors[index] }) }
+                }
+                Spacer(modifier = Modifier.height(30.dp))
+                Button(onClick = { onSave(name, selectedIcon, selectedColor) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)) { Text("Crear", fontSize = 16.sp) }
+            }
+        }
+    }
+}
+
+// ... Auxiliares (ExpenseLabel, ExpenseInput) ...
+@Composable
+fun ExpenseLabel(text: String, icon: ImageVector? = null) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
+        if (icon != null) { Icon(icon, null, tint = GreenPrimary, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(6.dp)) }
+        Text(text, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+    }
+}
+
+@Composable
+fun ExpenseInput(value: String, onValueChange: (String) -> Unit, placeholder: String) {
+    Box(modifier = Modifier.fillMaxWidth().height(56.dp).background(InputBackground, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+        if (value.isEmpty()) Text(placeholder, color = TextGray.copy(alpha = 0.5f), fontSize = 14.sp)
+        BasicTextField(value = value, onValueChange = onValueChange, textStyle = TextStyle(fontSize = 16.sp, color = TextDark), modifier = Modifier.fillMaxWidth())
     }
 }
