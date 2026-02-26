@@ -7,8 +7,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,43 +41,55 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+// --- DATOS MOCK ---
+// NOTA: Eliminé 'data class PaymentCard' de aquí porque ya existe en AlertModals.kt
+// Solo dejamos SubCategoryData porque es específica de aquí (o podrías moverla también)
 data class SubCategoryData(val name: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val color: Color)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun NewSubscriptionModal(
-    // Parámetros para EDITAR (Opcionales)
     initialName: String = "",
     initialPrice: String = "",
     initialCategory: String = "",
     initialCycle: String = "Mensual",
     initialDate: String = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+    initialCardId: String = "",
 
     onDismiss: () -> Unit,
     onSave: (String, String, String, String, String) -> Unit
 ) {
-    // --- ESTADOS INICIALIZADOS CON LOS PARÁMETROS ---
+    // Estados
     var name by remember { mutableStateOf(initialName) }
     var price by remember { mutableStateOf(initialPrice) }
     var selectedCycle by remember { mutableStateOf(initialCycle) }
     var selectedDateDisplay by remember { mutableStateOf(initialDate) }
 
-    // --- LISTA DE CATEGORÍAS ---
+    // Estado de Tarjeta Seleccionada
+    var selectedCardId by remember { mutableStateOf(initialCardId) }
+
+    // Mock de tarjetas (Usa la clase PaymentCard definida en AlertModals.kt)
+    val myCards = remember {
+        listOf(
+            PaymentCard("1", "BBVA", "1234", Color(0xFF1976D2)),
+            PaymentCard("2", "Nu", "5678", Color(0xFF8E44AD)),
+            PaymentCard("3", "Santander", "9012", Color(0xFFC62828))
+        )
+    }
+
+    // Estados de UI y Categorías
     val categories = remember {
         mutableStateListOf(
             SubCategoryData("Alimentos", Icons.Outlined.Fastfood, Color(0xFFFFA500)),
             SubCategoryData("Transporte", Icons.Outlined.DirectionsCar, Color(0xFF2ECC71)),
             SubCategoryData("Compras", Icons.Outlined.ShoppingBag, Color(0xFF9146FF)),
-            SubCategoryData("Hogar", Icons.Outlined.Home, Color(0xFF00A4EF)),
             SubCategoryData("Entretenimiento", Icons.Outlined.Movie, Color(0xFFE74C3C)),
-            SubCategoryData("Salud", Icons.Outlined.FavoriteBorder, Color(0xFFE91E63)),
-            SubCategoryData("Educación", Icons.Outlined.School, Color(0xFF34495E)),
+            SubCategoryData("Hogar", Icons.Outlined.Home, Color(0xFF00A4EF)),
             SubCategoryData("Otros", Icons.Outlined.MoreHoriz, Color(0xFF95A5A6))
         )
     }
 
-    // --- LÓGICA PARA ENCONTRAR LA CATEGORÍA INICIAL ---
-    // Si estamos editando, buscamos el índice de la categoría que tenía guardada
+    // Lógica para preseleccionar categoría si estamos editando
     var selectedCategoryIndex by remember {
         mutableStateOf(
             if (initialCategory.isNotEmpty()) {
@@ -85,24 +99,17 @@ fun NewSubscriptionModal(
         )
     }
 
-    // Estados de UI
-    var menuExpandedIndex by remember { mutableStateOf(-1) }
-    var showCategoryDialog by remember { mutableStateOf(false) }
-    var categoryToEditIndex by remember { mutableStateOf(-1) }
-    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
-    var categoryToDeleteIndex by remember { mutableStateOf(-1) }
-
+    // Lógica adicional (Diálogos, Foco, Calendario)
+    var showNewCategoryDialog by remember { mutableStateOf(false) }
     val priceFocusRequester = remember { FocusRequester() }
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
     val scrollState = rememberScrollState()
     val cycles = listOf("Diario", "Semanal", "Mensual", "Anual")
 
-    // Titulo dinámico
     val modalTitle = if (initialName.isNotEmpty()) "Editar Suscripción" else "Nueva Suscripción"
-    val buttonText = if (initialName.isNotEmpty()) "Guardar Cambios" else "Guardar Suscripción"
 
-    // --- LÓGICA CALENDARIO ---
+    // --- CALENDARIO ---
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -122,42 +129,15 @@ fun NewSubscriptionModal(
         }
     }
 
-    // --- DIÁLOGOS DE CATEGORÍA ---
-    if (showCategoryDialog) {
-        val isEditing = categoryToEditIndex != -1
-        val initialData = if (isEditing) categories[categoryToEditIndex] else null
-        CategoryFormDialog(
-            initialName = initialData?.name ?: "",
-            initialIcon = initialData?.icon,
-            initialColor = initialData?.color,
-            isEditing = isEditing,
-            onDismiss = { showCategoryDialog = false; categoryToEditIndex = -1 },
+    // --- DIÁLOGO DE NUEVA CATEGORÍA ---
+    if (showNewCategoryDialog) {
+        NewCategoryDialog(
+            onDismiss = { showNewCategoryDialog = false },
             onSave = { catName, catIcon, catColor ->
-                if (isEditing) categories[categoryToEditIndex] = SubCategoryData(catName, catIcon, catColor)
-                else { categories.add(SubCategoryData(catName, catIcon, catColor)); selectedCategoryIndex = categories.lastIndex }
-                showCategoryDialog = false; categoryToEditIndex = -1
+                categories.add(SubCategoryData(catName, catIcon, catColor))
+                selectedCategoryIndex = categories.lastIndex
+                showNewCategoryDialog = false
             }
-        )
-    }
-
-    if (showDeleteConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmDialog = false },
-            containerColor = White,
-            icon = { Icon(Icons.Outlined.Delete, null, tint = ErrorRed) },
-            title = { Text("Eliminar Categoría", fontWeight = FontWeight.Bold, color = TextDark) },
-            text = { Text("¿Estás seguro? Esta acción no se puede deshacer.", color = TextGray) },
-            confirmButton = {
-                Button(onClick = {
-                    if (categoryToDeleteIndex != -1) {
-                        if (selectedCategoryIndex == categoryToDeleteIndex) selectedCategoryIndex = 0
-                        else if (selectedCategoryIndex > categoryToDeleteIndex) selectedCategoryIndex--
-                        categories.removeAt(categoryToDeleteIndex)
-                    }
-                    showDeleteConfirmDialog = false
-                }, colors = ButtonDefaults.buttonColors(containerColor = ErrorRed)) { Text("Eliminar", fontWeight = FontWeight.Bold) }
-            },
-            dismissButton = { TextButton(onClick = { showDeleteConfirmDialog = false }) { Text("Cancelar", color = TextDark) } }
         )
     }
 
@@ -180,7 +160,7 @@ fun NewSubscriptionModal(
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(modalTitle, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark)
-                        Text(if(initialName.isNotEmpty()) "Modifica tu servicio" else "Agrega un nuevo servicio", fontSize = 14.sp, color = TextGray)
+                        Text("Configura los detalles", fontSize = 14.sp, color = TextGray)
                     }
                 }
                 IconButton(onClick = onDismiss, modifier = Modifier.background(InputBackground, CircleShape)) {
@@ -191,53 +171,36 @@ fun NewSubscriptionModal(
             Spacer(modifier = Modifier.height(20.dp))
 
             Column(modifier = Modifier.weight(1f).verticalScroll(scrollState)) {
-                // Nombre
+                // 1. Nombre
                 ModalLabel("Nombre del Servicio", Icons.Outlined.Description)
-                ModalInput(value = name, onValueChange = { name = it }, placeholder = "Ej: Netflix, Spotify...")
+                ModalInput(value = name, onValueChange = { name = it }, placeholder = "Ej: Netflix...")
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Categorías
+                // 2. Categorías
                 ModalLabel("Selecciona Categoría", Icons.Outlined.Category)
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.height(360.dp)
+                    modifier = Modifier.height(360.dp) // Espacio suficiente para 3 filas
                 ) {
                     items(categories.size) { index ->
-                        Box {
-                            BigCategoryItem(
-                                data = categories[index],
-                                isSelected = selectedCategoryIndex == index,
-                                onClick = { selectedCategoryIndex = index },
-                                onLongClick = { menuExpandedIndex = index }
-                            )
-                            DropdownMenu(
-                                expanded = menuExpandedIndex == index,
-                                onDismissRequest = { menuExpandedIndex = -1 },
-                                modifier = Modifier.background(White)
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Editar", color = TextDark) },
-                                    leadingIcon = { Icon(Icons.Default.Edit, null, tint = GreenPrimary) },
-                                    onClick = { menuExpandedIndex = -1; categoryToEditIndex = index; showCategoryDialog = true }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Eliminar", color = ErrorRed) },
-                                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = ErrorRed) },
-                                    onClick = { menuExpandedIndex = -1; categoryToDeleteIndex = index; showDeleteConfirmDialog = true }
-                                )
-                            }
-                        }
+                        BigCategoryItem(
+                            data = categories[index],
+                            isSelected = selectedCategoryIndex == index,
+                            onClick = { selectedCategoryIndex = index },
+                            onLongClick = { } // Dejar vacío si no quieres menú aquí
+                        )
                     }
                     item {
+                        // Botón "Nueva" reutilizando el estilo cuadrado
                         Box(
                             modifier = Modifier
                                 .aspectRatio(1f)
                                 .border(1.dp, GreenPrimary, RoundedCornerShape(16.dp))
                                 .background(White, RoundedCornerShape(16.dp))
-                                .clickable { categoryToEditIndex = -1; showCategoryDialog = true },
+                                .clickable { showNewCategoryDialog = true },
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -253,12 +216,25 @@ fun NewSubscriptionModal(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Monto
+                // 3. Selección de Tarjeta
+                ModalLabel("Método de Pago", Icons.Outlined.CreditCard)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(myCards) { card ->
+                        SelectableCardItem(
+                            card = card,
+                            isSelected = selectedCardId == card.id,
+                            onClick = {
+                                selectedCardId = if(selectedCardId == card.id) "" else card.id
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // 4. Monto
                 ModalLabel("Monto", Icons.Outlined.AttachMoney)
-                Box(
-                    modifier = Modifier.fillMaxWidth().height(56.dp).background(InputBackground, RoundedCornerShape(16.dp)).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { priceFocusRequester.requestFocus() }.padding(horizontal = 16.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
+                Box(modifier = Modifier.fillMaxWidth().height(56.dp).background(InputBackground, RoundedCornerShape(16.dp)).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { priceFocusRequester.requestFocus() }.padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         Text("$ ", fontWeight = FontWeight.Bold, color = TextGray)
                         Box(modifier = Modifier.weight(1f)) {
@@ -270,15 +246,12 @@ fun NewSubscriptionModal(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Frecuencia
-                ModalLabel("Frecuencia de Pago", Icons.Outlined.DateRange)
+                // 5. Frecuencia
+                ModalLabel("Frecuencia", Icons.Outlined.DateRange)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     cycles.forEach { cycle ->
                         val isSelected = selectedCycle == cycle
-                        Box(
-                            modifier = Modifier.weight(1f).height(45.dp).shadow(if(isSelected) 4.dp else 0.dp, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(if (isSelected) GreenPrimary else White).border(width = if (isSelected) 0.dp else 1.dp, color = if (isSelected) Color.Transparent else Color.LightGray.copy(alpha = 0.5f), shape = RoundedCornerShape(12.dp)).clickable { selectedCycle = cycle },
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(modifier = Modifier.weight(1f).height(45.dp).clip(RoundedCornerShape(12.dp)).background(if (isSelected) GreenPrimary else InputBackground).clickable { selectedCycle = cycle }, contentAlignment = Alignment.Center) {
                             Text(text = cycle, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (isSelected) White else TextGray)
                         }
                     }
@@ -286,12 +259,9 @@ fun NewSubscriptionModal(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Fecha
-                ModalLabel("Próxima Fecha de Cargo", Icons.Outlined.Event)
-                Box(
-                    modifier = Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(16.dp)).background(InputBackground).clickable { showDatePicker = true }.padding(horizontal = 16.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
+                // 6. Fecha
+                ModalLabel("Próximo Cargo", Icons.Outlined.Event)
+                Box(modifier = Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(16.dp)).background(InputBackground).clickable { showDatePicker = true }.padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(text = selectedDateDisplay, color = TextDark, fontWeight = FontWeight.Medium, fontSize = 16.sp)
                         Icon(Icons.Default.CalendarToday, null, tint = TextDark, modifier = Modifier.size(20.dp))
@@ -305,9 +275,9 @@ fun NewSubscriptionModal(
                     onClick = { onSave(name, price, categories[selectedCategoryIndex].name, selectedCycle, selectedDateDisplay) },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary, disabledContainerColor = GreenPrimary.copy(alpha = 0.5f)),
+                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
                     enabled = name.isNotEmpty() && price.isNotEmpty()
-                ) { Text(buttonText, fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+                ) { Text(if(initialName.isNotEmpty()) "Guardar Cambios" else "Crear Suscripción", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
 
                 Spacer(modifier = Modifier.height(40.dp))
             }
@@ -315,18 +285,35 @@ fun NewSubscriptionModal(
     }
 }
 
-// ... (Los Componentes Auxiliares BigCategoryItem, CategoryFormDialog, etc. se mantienen igual) ...
-// Asegúrate de tener los componentes auxiliares que definimos en el mensaje anterior aquí abajo.
-// ==========================================
-// COMPONENTES AUXILIARES
-// ==========================================
+// --- COMPONENTES VISUALES ---
+
+@Composable
+fun SelectableCardItem(card: PaymentCard, isSelected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .width(120.dp)
+            .height(70.dp)
+            .border(width = if(isSelected) 3.dp else 0.dp, color = if(isSelected) GreenPrimary else Color.Transparent, shape = RoundedCornerShape(12.dp))
+            .padding(if(isSelected) 3.dp else 0.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(brush = androidx.compose.ui.graphics.Brush.linearGradient(listOf(card.color, card.color.copy(alpha = 0.7f))))
+            .clickable { onClick() }
+            .padding(10.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(card.name, color = White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                if(isSelected) Icon(Icons.Default.CheckCircle, null, tint = White, modifier = Modifier.size(14.dp))
+            }
+            Text("•••• ${card.last4}", color = White, fontSize = 10.sp, letterSpacing = 1.sp)
+        }
+    }
+}
 
 @Composable
 fun ModalLabel(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
-        if (icon != null) {
-            Icon(icon, null, tint = GreenPrimary, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(6.dp))
-        }
+        if (icon != null) { Icon(icon, null, tint = GreenPrimary, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(6.dp)) }
         Text(text, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
     }
 }
@@ -348,7 +335,7 @@ fun BigCategoryItem(data: SubCategoryData, isSelected: Boolean, onClick: () -> U
             .border(width = if (isSelected) 2.dp else 1.dp, color = if (isSelected) GreenPrimary else InputBackground, shape = RoundedCornerShape(16.dp))
             .background(if (isSelected) GreenPrimary.copy(alpha = 0.05f) else White, RoundedCornerShape(16.dp))
             .clip(RoundedCornerShape(16.dp))
-            // Usamos combinedClickable para detectar el click largo
+            // Corrección: combinedClickable ahora está bien importado y usado
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -356,97 +343,10 @@ fun BigCategoryItem(data: SubCategoryData, isSelected: Boolean, onClick: () -> U
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(modifier = Modifier.size(48.dp).background(data.color.copy(alpha = 0.2f), CircleShape), contentAlignment = Alignment.Center) {
-                Icon(data.icon, null, tint = data.color, modifier = Modifier.size(24.dp))
-            }
+            Box(modifier = Modifier.size(48.dp).background(data.color.copy(alpha = 0.2f), CircleShape), contentAlignment = Alignment.Center) { Icon(data.icon, null, tint = data.color, modifier = Modifier.size(24.dp)) }
             Spacer(modifier = Modifier.height(8.dp))
             Text(data.name, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = TextDark)
         }
-        if (isSelected) {
-            Box(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(20.dp).background(GreenPrimary, CircleShape).border(2.dp, White, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Check, null, tint = White, modifier = Modifier.size(12.dp))
-            }
-        }
-    }
-}
-
-// ==========================================
-// DIÁLOGO PARA CREAR / EDITAR CATEGORÍA
-// ==========================================
-@Composable
-fun CategoryFormDialog(
-    initialName: String = "",
-    initialIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    initialColor: Color? = null,
-    isEditing: Boolean = false,
-    onDismiss: () -> Unit,
-    onSave: (String, androidx.compose.ui.graphics.vector.ImageVector, Color) -> Unit
-) {
-    var name by remember { mutableStateOf(initialName) }
-    var selectedIcon by remember { mutableStateOf(initialIcon ?: Icons.Outlined.Coffee) }
-    var selectedColor by remember { mutableStateOf(initialColor ?: GreenPrimary) }
-
-    val icons = listOf(Icons.Outlined.Coffee, Icons.Outlined.Fastfood, Icons.Outlined.DirectionsCar, Icons.Outlined.Flight, Icons.Outlined.ShoppingCart, Icons.Outlined.CardGiftcard, Icons.Outlined.Checkroom, Icons.Outlined.Movie, Icons.Outlined.FavoriteBorder, Icons.Outlined.Home, Icons.Outlined.Book, Icons.Outlined.Smartphone, Icons.Outlined.Pets, Icons.Outlined.SportsSoccer, Icons.Outlined.LocalHospital)
-    val colors = listOf(Color(0xFF00A4EF), Color(0xFF2ECC71), Color(0xFFFF9900), Color(0xFF9146FF), Color(0xFFE50914), Color(0xFFE91E63), Color(0xFF34495E), Color(0xFF95A5A6), Color(0xFF1ABC9C))
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = White),
-            shape = RoundedCornerShape(28.dp),
-            modifier = Modifier.fillMaxWidth().padding(4.dp).heightIn(min = 550.dp)
-        ) {
-            Column(modifier = Modifier.padding(24.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(48.dp).background(if(isEditing) Color(0xFFFFA500) else GreenPrimary, CircleShape), contentAlignment = Alignment.Center) {
-                            Icon(if(isEditing) Icons.Default.Edit else Icons.Default.AutoAwesome, null, tint = White, modifier = Modifier.size(24.dp))
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text(if(isEditing) "Editar Categoría" else "Nueva Categoría", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
-                            Text("Personaliza tu estilo", fontSize = 13.sp, color = TextGray)
-                        }
-                    }
-                    IconButton(onClick = onDismiss, modifier = Modifier.background(InputBackground, CircleShape)) {
-                        Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = TextGray)
-                    }
-                }
-                Spacer(modifier = Modifier.height(32.dp))
-                Column(horizontalAlignment = Alignment.Start, modifier = Modifier.fillMaxWidth()) {
-                    ModalLabel("Nombre")
-                    ModalInput(value = name, onValueChange = { name = it }, placeholder = "Ej: Viajes...")
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-                Column(horizontalAlignment = Alignment.Start, modifier = Modifier.fillMaxWidth()) {
-                    ModalLabel("Icono")
-                    LazyVerticalGrid(columns = GridCells.Adaptive(48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.height(200.dp)) {
-                        items(icons.size) { index ->
-                            Box(modifier = Modifier.size(48.dp).border(1.dp, if (selectedIcon == icons[index]) GreenPrimary else InputBackground, RoundedCornerShape(12.dp)).background(if (selectedIcon == icons[index]) GreenPrimary.copy(alpha = 0.1f) else White, RoundedCornerShape(12.dp)).clickable { selectedIcon = icons[index] }, contentAlignment = Alignment.Center) {
-                                Icon(icons[index], null, tint = if(selectedIcon == icons[index]) GreenPrimary else TextGray, modifier = Modifier.size(24.dp))
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-                Column(horizontalAlignment = Alignment.Start, modifier = Modifier.fillMaxWidth()) {
-                    ModalLabel("Color")
-                    LazyVerticalGrid(columns = GridCells.Adaptive(42.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.height(100.dp)) {
-                        items(colors.size) { index ->
-                            Box(modifier = Modifier.size(42.dp).background(colors[index], RoundedCornerShape(12.dp)).clickable { selectedColor = colors[index] }, contentAlignment = Alignment.Center) {
-                                if (selectedColor == colors[index]) Icon(Icons.Default.Check, null, tint = White, modifier = Modifier.size(24.dp))
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(40.dp))
-                Button(
-                    onClick = { onSave(name, selectedIcon, selectedColor) },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = if(isEditing) Color(0xFFFFA500) else GreenPrimary),
-                    enabled = name.isNotEmpty()
-                ) { Text(if(isEditing) "Guardar Cambios" else "Crear Categoría", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
-            }
-        }
+        if (isSelected) { Box(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(20.dp).background(GreenPrimary, CircleShape).border(2.dp, White, CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Default.Check, null, tint = White, modifier = Modifier.size(12.dp)) } }
     }
 }
