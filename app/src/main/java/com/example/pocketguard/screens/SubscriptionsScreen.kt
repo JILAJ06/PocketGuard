@@ -21,10 +21,29 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.pocketguard.components.NewSubscriptionModal
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.pocketguard.data.models.Subscription
+import com.example.pocketguard.presentation.di.ServiceLocator
+import com.example.pocketguard.presentation.viewmodel.SubscriptionsViewModel
 import com.example.pocketguard.ui.theme.*
 
-// Modelo de datos para la UI
+fun getCategoryIcon(categoryName: String): ImageVector {
+    return when (categoryName.lowercase()) {
+        "streaming", "entretenimiento" -> Icons.Default.Movie
+        "música", "music" -> Icons.Default.MusicNote
+        "transporte" -> Icons.Default.DirectionsCar
+        "comida", "alimentos", "food" -> Icons.Default.Restaurant
+        "gimnasio", "fitness", "gym" -> Icons.Default.FitnessCenter
+        "educación", "education" -> Icons.Default.School
+        "salud", "health" -> Icons.Default.Favorite
+        "compras", "shopping" -> Icons.Default.ShoppingCart
+        "hogar", "home" -> Icons.Default.Home
+        "servicios", "services" -> Icons.Default.Build
+        else -> Icons.Default.Category
+    }
+}
+
 data class SubscriptionUI(
     val id: String,
     val name: String,
@@ -40,32 +59,77 @@ data class SubscriptionUI(
 @Composable
 fun SubscriptionsScreen(
     onAddClick: () -> Unit = {},
-    onEditClick: (String) -> Unit = {}
+    onEditClick: (String) -> Unit = {},
+    onAuthExpired: () -> Unit = {}
 ) {
-    // --- ESTADOS LOCALES ---
-    var showNewSubscriptionModal by remember { mutableStateOf(false) }
-    var selectedSubscription by remember { mutableStateOf<SubscriptionUI?>(null) }
+    val viewModel: SubscriptionsViewModel = viewModel(
+        factory = ServiceLocator.getSubscriptionsViewModelFactory()
+    )
+    val cardsViewModel: com.example.pocketguard.presentation.viewmodel.CardsViewModel = viewModel(
+        factory = ServiceLocator.getCardsViewModelFactory()
+    )
+    val categoriesViewModel: com.example.pocketguard.presentation.viewmodel.CategoriesViewModel = viewModel(
+        factory = ServiceLocator.getCategoriesViewModelFactory()
+    )
 
-    // Estados para Eliminación
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var subscriptionToDelete by remember { mutableStateOf<SubscriptionUI?>(null) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val cardsState by cardsViewModel.state.collectAsStateWithLifecycle()
+    val categoriesState by categoriesViewModel.state.collectAsStateWithLifecycle()
 
-    // Datos Mock
-    val subscriptions = remember {
-        mutableStateListOf(
-            SubscriptionUI("1", "Netflix Premium", "199", "Mensual", "10/03/2026", "Entretenimiento", 4, Icons.Default.Movie, BrandNetflix),
-            SubscriptionUI("2", "Spotify Duo", "149", "Mensual", "15/03/2026", "Música", 12, Icons.Default.MusicNote, BrandSpotify),
-            SubscriptionUI("3", "Amazon Prime", "899", "Anual", "20/10/2026", "Compras", 245, Icons.Default.ShoppingCart, BrandAmazon),
-            SubscriptionUI("4", "HBO Max", "179", "Mensual", "05/03/2026", "Entretenimiento", 2, Icons.Default.Movie, BrandHBO)
-        )
+    LaunchedEffect(Unit) {
+        cardsViewModel.loadCards()
+        categoriesViewModel.loadCategories()
     }
 
-    val totalMonthly = subscriptions
-        .filter { it.cycle == "Mensual" }
-        .sumOf { it.price.toIntOrNull() ?: 0 } +
-            (subscriptions.filter { it.cycle == "Anual" }.sumOf { it.price.toIntOrNull() ?: 0 } / 12)
+    LaunchedEffect(state.isUnauthorized) {
+        if (state.isUnauthorized) {
+            onAuthExpired()
+        }
+    }
 
-    // --- ALERTA DE ELIMINACIÓN ---
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var subscriptionToDelete by remember { mutableStateOf<Subscription?>(null) }
+    var showAddModal by remember { mutableStateOf(false) }
+
+    // Mapear tarjetas
+    val cards = remember(cardsState.cards) {
+        cardsState.cards.map { card ->
+            com.example.pocketguard.components.PaymentCard(
+                id = card.card_id,
+                name = if (card.alias.isNotEmpty()) card.alias else card.bank_name,
+                last4 = card.last_4_digits ?: "",
+                color = Color(android.graphics.Color.parseColor(card.color_hex ?: "#4A90E2"))
+            )
+        }
+    }
+
+    // Mapear categorías
+    val categories = remember(categoriesState.categories) {
+        categoriesState.categories.map { cat ->
+            com.example.pocketguard.components.SubCategoryData(
+                name = cat.name,
+                icon = getCategoryIcon(cat.name),
+                color = Color(android.graphics.Color.parseColor(cat.color_hex ?: "#4A90E2"))
+            )
+        }
+    }
+
+    val subscriptions = remember(state.subscriptions) {
+        state.subscriptions.map { sub ->
+            SubscriptionUI(
+                id = sub.subscription_id,
+                name = sub.service_name,
+                price = String.format("%.2f", sub.amount),
+                cycle = sub.billing_cycle,
+                nextDate = sub.next_payment_date,
+                categoryName = sub.category_name,
+                daysLeft = sub.days_until_payment,
+                icon = Icons.Default.CreditCard,
+                color = Color(android.graphics.Color.parseColor(sub.category_color))
+            )
+        }
+    }
+
     if (showDeleteDialog && subscriptionToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -81,7 +145,7 @@ fun SubscriptionsScreen(
             },
             text = {
                 Text(
-                    text = "¿Estás seguro de que deseas eliminar ${subscriptionToDelete?.name}? Esta acción no se puede deshacer.",
+                    text = "¿Estás seguro de que deseas eliminar ${subscriptionToDelete?.service_name}? Esta acción no se puede deshacer.",
                     color = TextGray,
                     fontSize = 14.sp
                 )
@@ -89,8 +153,7 @@ fun SubscriptionsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        // Lógica de eliminación
-                        subscriptions.remove(subscriptionToDelete)
+                        viewModel.deleteSubscription(subscriptionToDelete!!.subscription_id)
                         showDeleteDialog = false
                         subscriptionToDelete = null
                     },
@@ -110,14 +173,50 @@ fun SubscriptionsScreen(
         )
     }
 
+    // Modal de Nueva Suscripción
+    if (showAddModal) {
+        com.example.pocketguard.components.NewSubscriptionModal(
+            cards = cards,
+            categories = categories,
+            onDismiss = { showAddModal = false },
+            onSave = { name, price, category, cycle, date, cardId ->
+                val billingCycleId = when (cycle) {
+                    "Diario" -> 1
+                    "Semanal" -> 2
+                    "Anual" -> 4
+                    else -> 3 // Mensual
+                }
+                val categoryId = categoriesState.categories.firstOrNull { it.name == category }?.id ?: ""
+
+                // Convertir fecha de dd/MM/yyyy a YYYY-MM-DD
+                val formattedDate = try {
+                    val inputFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                    val outputFormatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                    val localDate = java.time.LocalDate.parse(date, inputFormatter)
+                    localDate.format(outputFormatter)
+                } catch (e: Exception) {
+                    date // Si falla, usar el original
+                }
+
+                // Crear la suscripción con el cardId de la tarjeta seleccionada
+                viewModel.createSubscription(
+                    serviceName = name,
+                    amount = price.toDoubleOrNull() ?: 0.0,
+                    nextPaymentDate = formattedDate,
+                    billingCycleId = billingCycleId,
+                    categoryId = categoryId,
+                    cardId = cardId // ✅ Ahora usa el ID de la tarjeta seleccionada
+                )
+                showAddModal = false
+            }
+        )
+    }
+
     Scaffold(
         containerColor = BackgroundLight,
         floatingActionButton = {
             FloatingActionButton(
-                onClick = {
-                    selectedSubscription = null
-                    showNewSubscriptionModal = true
-                },
+                onClick = { showAddModal = true },
                 containerColor = GreenPrimary,
                 contentColor = White,
                 shape = CircleShape,
@@ -132,71 +231,38 @@ fun SubscriptionsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // 1. Cabecera
-            SubscriptionsHeader(total = "$$totalMonthly")
+            SubscriptionsHeader(total = "$$${String.format("%.2f", state.totalMonthly)}")
 
-            // 2. Lista
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    Text("Mis Servicios", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
+            if (state.isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = GreenPrimary)
                 }
-                items(subscriptions) { sub ->
-                    SubscriptionPremiumCard(
-                        subscription = sub,
-                        onClick = {
-                            selectedSubscription = sub
-                            showNewSubscriptionModal = true
-                        },
-                        onLongClick = { // <--- NUEVO EVENTO
-                            subscriptionToDelete = sub
-                            showDeleteDialog = true
-                        }
-                    )
+            } else if (state.errorMessage.isNotEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(state.errorMessage, color = ErrorRed, fontSize = 14.sp)
                 }
-                item { Spacer(modifier = Modifier.height(80.dp)) }
-            }
-        }
-    }
-
-    // --- LOGICA DEL MODAL DE CREACIÓN/EDICIÓN ---
-    if (showNewSubscriptionModal) {
-        NewSubscriptionModal(
-            initialName = selectedSubscription?.name ?: "",
-            initialPrice = selectedSubscription?.price ?: "",
-            initialCategory = selectedSubscription?.categoryName ?: "",
-            initialCycle = selectedSubscription?.cycle ?: "Mensual",
-            initialDate = selectedSubscription?.nextDate ?: "dd/MM/yyyy",
-
-            onDismiss = { showNewSubscriptionModal = false },
-            onSave = { name, price, category, cycle, date ->
-                if (selectedSubscription != null) {
-                    val index = subscriptions.indexOfFirst { it.id == selectedSubscription!!.id }
-                    if (index != -1) {
-                        subscriptions[index] = subscriptions[index].copy(
-                            name = name, price = price, cycle = cycle, nextDate = date, categoryName = category
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        Text("Mis Servicios", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
+                    }
+                    items(subscriptions) { sub ->
+                        SubscriptionPremiumCard(
+                            subscription = sub,
+                            onClick = { onEditClick(sub.id) },
+                            onLongClick = {
+                                subscriptionToDelete = state.subscriptions.find { it.subscription_id == sub.id }
+                                showDeleteDialog = true
+                            }
                         )
                     }
-                } else {
-                    subscriptions.add(
-                        SubscriptionUI(
-                            id = (subscriptions.size + 1).toString(),
-                            name = name,
-                            price = price,
-                            cycle = cycle,
-                            nextDate = date,
-                            categoryName = category,
-                            daysLeft = 30,
-                            icon = Icons.Default.CreditCard,
-                            color = GreenPrimary
-                        )
-                    )
+                    item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
-                showNewSubscriptionModal = false
             }
-        )
+        }
     }
 }
 
