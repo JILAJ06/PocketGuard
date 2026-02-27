@@ -1,7 +1,5 @@
 package com.example.pocketguard.screens
 
-import android.app.Activity
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,7 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -23,30 +20,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pocketguard.components.PocketGuardTextField
 import com.example.pocketguard.components.SocialButton
-import com.example.pocketguard.network.GoogleAuthHelper
-import com.example.pocketguard.viewmodels.AuthViewModel
-
 @Composable
 fun SignUpScreen(
     onRegisterClick: () -> Unit,
     onLoginLinkClick: () -> Unit,
-    onGoogleClick: () -> Unit,
-    viewModel: AuthViewModel? = null
+    onGoogleClick: () -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isChecked by remember { mutableStateOf(false) }
-    val authState by viewModel?.authUiState?.collectAsState() ?: remember { mutableStateOf(null) }
-    val context = LocalContext.current
-
-    // Mostrar error si existe
-    if (authState?.errorMessage != null) {
-        LaunchedEffect(authState?.errorMessage) {
-            Toast.makeText(context, authState?.errorMessage, Toast.LENGTH_LONG).show()
-            viewModel?.clearError()
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -115,53 +98,20 @@ fun SignUpScreen(
 
         // --- Botones ---
         Button(
-            onClick = {
-                // Validaciones
-                when {
-                    name.isEmpty() || email.isEmpty() || password.isEmpty() -> {
-                        Toast.makeText(context, "Por favor completa todos los campos", Toast.LENGTH_SHORT).show()
-                    }
-                    password.length < 8 -> {
-                        Toast.makeText(context, "La contraseña debe tener al menos 8 caracteres", Toast.LENGTH_SHORT).show()
-                    }
-                    !isChecked -> {
-                        Toast.makeText(context, "Debes aceptar los términos", Toast.LENGTH_SHORT).show()
-                    }
-                    else -> {
-                        viewModel?.register(email, password, name)
-                    }
-                }
-            },
-            enabled = isChecked && authState?.isLoading != true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
+            onClick = onRegisterClick,
+            enabled = isChecked,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 disabledContainerColor = Color.LightGray
             )
         ) {
-            if (authState?.isLoading == true) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text("Comenzar a Ahorrar", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
-            }
+            Text("Comenzar a Ahorrar", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        SocialButton(
-            text = "Registrarse con Google",
-            onClick = {
-                val activity = context as? Activity
-                if (activity != null) {
-                    GoogleAuthHelper(activity).startGoogleSignIn()
-                }
-            }
-        )
+        SocialButton(text = "Registrarse con Google", onClick = onGoogleClick)
 
         Spacer(modifier = Modifier.height(24.dp))
 

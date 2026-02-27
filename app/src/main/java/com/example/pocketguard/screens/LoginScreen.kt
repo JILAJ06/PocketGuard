@@ -1,7 +1,5 @@
 package com.example.pocketguard.screens
 
-import android.app.Activity
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -29,37 +26,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pocketguard.components.PocketGuardTextField
 import com.example.pocketguard.components.SocialButton
-import com.example.pocketguard.data.repository.AuthRepository
-import com.example.pocketguard.data.store.TokenStore
-import com.example.pocketguard.network.GoogleAuthHelper
-import com.example.pocketguard.viewmodels.AuthViewModel
-import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
     onLoginClick: () -> Unit,
     onRegisterLinkClick: () -> Unit,
-    onGoogleClick: () -> Unit,
-    viewModel: AuthViewModel? = null
+    onGoogleClick: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    val authState by viewModel?.authUiState?.collectAsState() ?: remember { mutableStateOf(null) }
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-
-    // Mostrar error si existe
-    if (authState?.errorMessage != null) {
-        LaunchedEffect(authState?.errorMessage) {
-            Toast.makeText(context, authState?.errorMessage, Toast.LENGTH_LONG).show()
-            viewModel?.clearError()
-        }
-    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.background) // Uso del tema
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -102,28 +82,12 @@ fun LoginScreen(
 
         // --- Botones ---
         Button(
-            onClick = {
-                if (email.isNotEmpty() && password.isNotEmpty()) {
-                    viewModel?.login(email, password)
-                } else {
-                    onLoginClick()
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
+            onClick = onLoginClick,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            enabled = authState?.isLoading != true
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
-            if (authState?.isLoading == true) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text("Iniciar Sesión", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
-            }
+            Text("Iniciar Sesión", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -136,15 +100,7 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        SocialButton(
-            text = "Iniciar con Google",
-            onClick = {
-                val activity = context as? Activity
-                if (activity != null) {
-                    GoogleAuthHelper(activity).startGoogleSignIn()
-                }
-            }
-        )
+        SocialButton(text = "Iniciar con Google", onClick = onGoogleClick)
 
         Spacer(modifier = Modifier.height(32.dp))
 
