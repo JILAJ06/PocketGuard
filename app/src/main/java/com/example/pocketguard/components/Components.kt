@@ -36,7 +36,9 @@ fun PocketGuardTextField(
     label: String,
     icon: ImageVector,
     isPassword: Boolean = false,
-    keyboardType: KeyboardType = KeyboardType.Text
+    keyboardType: KeyboardType = KeyboardType.Text,
+    isError: Boolean = false,
+    enabled: Boolean = true
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
 
@@ -47,7 +49,7 @@ fun PocketGuardTextField(
         leadingIcon = { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
         trailingIcon = if (isPassword) {
             {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                IconButton(onClick = { passwordVisible = !passwordVisible }, enabled = enabled) {
                     Icon(
                         imageVector = if (passwordVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
                         contentDescription = "Toggle Password",
@@ -60,25 +62,29 @@ fun PocketGuardTextField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         shape = RoundedCornerShape(16.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = Color.Transparent,
+            focusedBorderColor = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = if (isError) MaterialTheme.colorScheme.error else Color.Transparent,
             focusedContainerColor = MaterialTheme.colorScheme.surface,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant // Color InputBackground definido en theme
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        enabled = enabled,
+        isError = isError
     )
 }
 
 @Composable
 fun SocialButton(
     text: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    enabled: Boolean = true
 ) {
     OutlinedButton(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth().height(50.dp),
-        colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface),
+        enabled = enabled
     ) {
         Icon(Icons.Default.AccountCircle, contentDescription = null, tint = Color.Unspecified)
         Spacer(modifier = Modifier.width(8.dp))

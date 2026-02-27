@@ -109,20 +109,16 @@ fun HomeHeaderSection() {
             ) {
 
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column {
                             Text("Saldo Disponible", fontSize = 14.sp, color = TextGray)
-                            Text("$600", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                            Text("$0.00", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = TextDark)
                         }
                         Surface(
                             color = GreenPrimary.copy(alpha = 0.1f),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("12.0%", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = GreenPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("0.0%", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = GreenPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     }
                     Text("Después de gastos y suscripciones", fontSize = 12.sp, color = TextGray.copy(alpha = 0.7f))
@@ -130,9 +126,9 @@ fun HomeHeaderSection() {
                     Spacer(modifier = Modifier.height(20.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        StatColumn("Ingresos", "$5000")
-                        StatColumn("Gastos", "$3600")
-                        StatColumn("Suscripciones", "$800")
+                        StatColumn("Ingresos", "$0.00")
+                        StatColumn("Gastos", "$0.00")
+                        StatColumn("Suscripciones", "$0.00")
                     }
                 }
             }
@@ -149,8 +145,8 @@ fun QuickStatsRow() {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        QuickStatCard(Modifier.weight(1f), Icons.Default.TrendingUp, "Ingresos", "$5000")
-        QuickStatCard(Modifier.weight(1f), Icons.Default.CreditCard, "8 Suscripciones", "$800")
+        QuickStatCard(Modifier.weight(1f), Icons.Default.TrendingUp, "Ingresos", "$0.00")
+        QuickStatCard(Modifier.weight(1f), Icons.Default.CreditCard, "0 Suscripciones", "$0.00")
     }
 }
 
@@ -163,11 +159,18 @@ fun UpcomingChargesSection() {
         }
         Spacer(modifier = Modifier.height(12.dp))
 
-        UpcomingChargeItem("Netflix", "10 Feb", "$199", "4d", Icons.Default.Movie)
-        Spacer(modifier = Modifier.height(8.dp))
-        UpcomingChargeItem("Spotify", "12 Feb", "$115", "6d", Icons.Default.MusicNote)
-        Spacer(modifier = Modifier.height(8.dp))
-        UpcomingChargeItem("Amazon Prime", "15 Feb", "$99", "9d", Icons.Default.ShoppingCart)
+        Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(16.dp)) {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.CalendarToday, null, tint = TextGray.copy(alpha = 0.5f), modifier = Modifier.size(40.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("No hay cargos próximos", color = TextGray, fontSize = 14.sp)
+                }
+            }
+        }
     }
 }
 
@@ -181,20 +184,6 @@ data class ChartData(
 
 @Composable
 fun MonthlyTrendSection() {
-    // 1. Datos de la gráfica
-    val data = listOf(
-        ChartData("Mar", 1500, 500, 0.4f),
-        ChartData("Abr", 2800, 600, 0.75f),
-        ChartData("May", 2100, 550, 0.55f),
-        ChartData("Jun", 3600, 800, 0.95f)
-    )
-
-    // ESTADOS DE DINAMISMO
-    // Controla si la gráfica está expandida o colapsada
-    var isExpanded by remember { mutableStateOf(true) }
-    // Controla qué barra está seleccionada (Null = ninguna seleccionada/tooltip oculto)
-    var selectedData by remember { mutableStateOf<ChartData?>(null) }
-
     Card(
         colors = CardDefaults.cardColors(containerColor = White),
         shape = RoundedCornerShape(20.dp),
@@ -202,124 +191,19 @@ fun MonthlyTrendSection() {
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
+            Text("Tendencia Mensual", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
 
-            // --- HEADER CON BOTÓN DE COLAPSAR ---
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { isExpanded = !isExpanded }, // Al hacer clic en el título, también alterna
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Box(
+                modifier = Modifier.fillMaxWidth().height(180.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Text("Tendencia Mensual", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
-
-                // Icono animado que rota
-                IconButton(onClick = { isExpanded = !isExpanded }, modifier = Modifier.size(24.dp)) {
-                    Icon(
-                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = if (isExpanded) "Colapsar" else "Expandir",
-                        tint = TextGray
-                    )
-                }
-            }
-
-            // --- CONTENIDO EXPANDIBLE (ANIMADO) ---
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                Column {
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Contenedor Gráfico Interactivo
-                    // Agregamos un clickable al fondo para "deseleccionar" el tooltip
-                    BoxWithConstraints(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) { selectedData = null } // Ocultar tooltip al tocar el fondo
-                    ) {
-                        val width = maxWidth
-
-                        // Fondo con Ejes
-                        Row(modifier = Modifier.fillMaxSize()) {
-                            // Eje Y
-                            Column(
-                                verticalArrangement = Arrangement.SpaceBetween,
-                                modifier = Modifier.fillMaxHeight().padding(end = 12.dp)
-                            ) {
-                                Text("3600", fontSize = 10.sp, color = TextGray)
-                                Text("2700", fontSize = 10.sp, color = TextGray)
-                                Text("1800", fontSize = 10.sp, color = TextGray)
-                                Text("900", fontSize = 10.sp, color = TextGray)
-                                Text("0", fontSize = 10.sp, color = TextGray)
-                            }
-
-                            // Área de Barras
-                            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                                // Líneas horizontales
-                                Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-                                    repeat(5) { HorizontalDivider(color = InputBackground, thickness = 1.dp) }
-                                }
-
-                                // Las Barras
-                                Row(
-                                    modifier = Modifier.fillMaxSize(),
-                                    horizontalArrangement = Arrangement.SpaceAround,
-                                    verticalAlignment = Alignment.Bottom
-                                ) {
-                                    data.forEach { item ->
-                                        ChartBar(
-                                            label = item.month,
-                                            fill = item.fill,
-                                            isSelected = item == selectedData,
-                                            onClick = {
-                                                // Si tocas la misma, se oculta. Si es otra, se muestra.
-                                                selectedData = if (selectedData == item) null else item
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // --- TOOLTIP FLOTANTE (Solo aparece si selectedData no es nulo) ---
-                        selectedData?.let { currentData ->
-                            val selectedIndex = data.indexOf(currentData)
-                            val xOffset = 40.dp + ((width - 40.dp) / data.size * selectedIndex) + 10.dp
-                            val finalXOffset = if (selectedIndex == data.lastIndex) xOffset - 90.dp else xOffset - 30.dp
-                            // Animación simple de aparición para el tooltip
-                            val finalYOffset = (180.dp * (1 - currentData.fill))
-
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = finalXOffset, y = finalYOffset + 20.dp)
-                                    .shadow(6.dp, RoundedCornerShape(8.dp)) // Sombra un poco más fuerte
-                                    .background(White, RoundedCornerShape(8.dp))
-                                    .padding(12.dp)
-                                    .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
-                                        selectedData = null // Cerrar al tocar el tooltip
-                                    }
-                            ) {
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.width(100.dp)) {
-                                        Text(currentData.month, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                        Icon(Icons.Default.Close, null, modifier = Modifier.size(12.dp), tint = TextGray)
-                                    }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text("gastos : ${currentData.expenses}", color = TextGray, fontSize = 12.sp)
-                                    Text("suscripciones : ${currentData.subscriptions}", color = GreenPrimary, fontSize = 12.sp)
-                                }
-                            }
-                        }
-                    }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.TrendingUp, null, tint = TextGray.copy(alpha = 0.5f), modifier = Modifier.size(40.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("No hay datos suficientes", color = TextGray, fontSize = 14.sp)
+                    Text("Comienza a registrar tus gastos", color = TextGray.copy(alpha = 0.7f), fontSize = 12.sp)
                 }
             }
         }
@@ -336,11 +220,15 @@ fun RecentActivitySection() {
         Spacer(modifier = Modifier.height(12.dp))
 
         Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(16.dp)) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                TransactionItem("Starbucks", "Hoy", "-$85", Icons.Default.Coffee)
-                TransactionItem("Uber", "Hoy", "-$120", Icons.Default.DirectionsCar)
-                TransactionItem("HBO Max", "Ayer", "-$149", Icons.Default.Movie)
-                TransactionItem("Supermercado", "Ayer", "-$450", Icons.Default.ShoppingCart)
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.Receipt, null, tint = TextGray.copy(alpha = 0.5f), modifier = Modifier.size(40.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Sin actividad reciente", color = TextGray, fontSize = 14.sp)
+                }
             }
         }
     }
@@ -360,7 +248,7 @@ fun SmartAnalysisSection() {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Gasto Hormiga", fontSize = 12.sp, color = White.copy(alpha = 0.7f))
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("$1,240", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = White)
+                    Text("$0.00", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = White)
                     Text("En compras menores a $100", fontSize = 12.sp, color = White.copy(alpha = 0.5f))
                 }
             }
@@ -369,7 +257,7 @@ fun SmartAnalysisSection() {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Potencial de Ahorro", fontSize = 12.sp, color = White.copy(alpha = 0.7f))
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("20%", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = White)
+                    Text("0%", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = White)
                     Text("Reduciendo gastos innecesarios", fontSize = 12.sp, color = White.copy(alpha = 0.5f))
                 }
             }

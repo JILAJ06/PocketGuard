@@ -24,6 +24,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.pocketguard.presentation.di.ServiceLocator
+import com.example.pocketguard.presentation.viewmodel.AddSubscriptionViewModel
+import com.example.pocketguard.presentation.viewmodel.CategoriesViewModel
 import com.example.pocketguard.ui.theme.*
 import java.time.Instant
 import java.time.ZoneId
@@ -34,33 +39,76 @@ import java.time.format.DateTimeFormatter
 fun AddSubscriptionScreen(
     subscriptionId: String? = null,
     onBackClick: () -> Unit,
-    onSaveClick: () -> Unit
+    onSaveClick: () -> Unit,
+    onAuthExpired: () -> Unit = {}
 ) {
-    // --- ESTADOS DEL FORMULARIO ---
+    val viewModel: AddSubscriptionViewModel = viewModel(
+        factory = ServiceLocator.getAddSubscriptionViewModelFactory()
+    )
+    val categoriesViewModel: CategoriesViewModel = viewModel(
+        factory = ServiceLocator.getCategoriesViewModelFactory()
+    )
+
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val categoriesState by categoriesViewModel.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        categoriesViewModel.loadCategories()
+    }
+
+    LaunchedEffect(state.isUnauthorized || categoriesState.isUnauthorized) {
+        if (state.isUnauthorized || categoriesState.isUnauthorized) {
+            onAuthExpired()
+        }
+    }
+
     var name by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
-    var selectedColor by remember { mutableStateOf(BrandNetflix) } // Color por defecto
-    var category by remember { mutableStateOf("Entretenimiento") }
+    var selectedColor by remember { mutableStateOf(BrandNetflix) }
+    var categoryId by remember { mutableStateOf("") }
+    var categoryName by remember { mutableStateOf("") }
     var dateDisplay by remember { mutableStateOf("Seleccionar fecha") }
-    var billingCycle by remember { mutableStateOf("Mensual") }
+    var billingCycleId by remember { mutableStateOf(3) }
 
-    // Estados de UI (Dropdowns y Modales)
     var showDatePicker by remember { mutableStateOf(false) }
     var showCycleDropdown by remember { mutableStateOf(false) }
     var showCategoryDropdown by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
 
-    // Listas de Opciones
-    val cycles = listOf("Mensual", "Anual", "Semanal", "Trimestral")
-    val categories = listOf("Entretenimiento", "Música", "Hogar", "Transporte", "Salud", "Educación", "Compras", "Trabajo", "Otros")
-    // Usamos los colores de marca definidos en Color.kt
     val availableColors = listOf(BrandNetflix, BrandSpotify, BrandAmazon, BrandHBO, BrandDisney, BrandApple, GreenPrimary)
 
-    // Títulos dinámicos
     val screenTitle = if (subscriptionId != null) "Editar Suscripción" else "Nueva Suscripción"
     val buttonText = if (subscriptionId != null) "Guardar Cambios" else "Guardar Suscripción"
 
-    // --- LÓGICA DEL CALENDARIO ---
+    LaunchedEffect(subscriptionId) {
+        if (subscriptionId != null) {
+            viewModel.loadSubscription(subscriptionId)
+        }
+    }
+
+    LaunchedEffect(state.subscription, categoriesState.categories) {
+        state.subscription?.let { sub ->
+            name = sub.service_name
+            price = sub.amount.toString()
+            categoryName = sub.category_name
+            categoryId = categoriesState.categories.firstOrNull { it.name == sub.category_name }?.id ?: ""
+            dateDisplay = sub.next_payment_date
+            billingCycleId = when (sub.billing_cycle) {
+                "Daily" -> 1
+                "Weekly" -> 2
+                "Yearly" -> 4
+                else -> 3
+            }
+        }
+    }
+
+    LaunchedEffect(state.isSuccess) {
+        if (state.isSuccess) {
+            viewModel.resetSuccess()
+            onSaveClick()
+        }
+    }
+
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -68,7 +116,7 @@ fun AddSubscriptionScreen(
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
                         val date = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
-                        dateDisplay = date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                        dateDisplay = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
                     }
                     showDatePicker = false
                 }) { Text("Aceptar", color = GreenPrimary, fontWeight = FontWeight.Bold) }
@@ -92,7 +140,7 @@ fun AddSubscriptionScreen(
     }
 
     Scaffold(
-        containerColor = White, // Fondo blanco para el formulario
+        containerColor = White,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(screenTitle, fontWeight = FontWeight.Bold, color = TextDark) },
@@ -113,7 +161,6 @@ fun AddSubscriptionScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp)
         ) {
-            // 1. INPUT PRECIO GRANDE
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Text("Monto del pago", color = TextGray, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(12.dp))
@@ -135,7 +182,6 @@ fun AddSubscriptionScreen(
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // 2. CAMPOS DEL FORMULARIO
             FormLabel("Nombre del servicio")
             FormInput(value = name, onValueChange = { name = it }, placeholder = "Ej. Netflix, Spotify...")
 
@@ -143,8 +189,11 @@ fun AddSubscriptionScreen(
 
             FormLabel("Categoría")
             Box {
-                FormSelector(value = category, icon = Icons.Default.Category, onClick = { showCategoryDropdown = true })
-                CustomDropdown(expanded = showCategoryDropdown, onDismiss = { showCategoryDropdown = false }, items = categories) { category = it }
+                FormSelector(value = categoryName, icon = Icons.Default.Category, onClick = { showCategoryDropdown = true })
+                CustomDropdown(expanded = showCategoryDropdown, onDismiss = { showCategoryDropdown = false }, items = categoriesState.categories.map { it.name }) { selected ->
+                    categoryName = selected
+                    categoryId = categoriesState.categories.firstOrNull { it.name == selected }?.id ?: ""
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -153,8 +202,10 @@ fun AddSubscriptionScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     FormLabel("Ciclo de cobro")
                     Box {
-                        FormSelector(value = billingCycle, icon = Icons.Default.Repeat, onClick = { showCycleDropdown = true })
-                        CustomDropdown(expanded = showCycleDropdown, onDismiss = { showCycleDropdown = false }, items = cycles) { billingCycle = it }
+                        FormSelector(value = state.billingCycles.find { it.id == billingCycleId }?.name ?: "Monthly", icon = Icons.Default.Repeat, onClick = { showCycleDropdown = true })
+                        CustomDropdown(expanded = showCycleDropdown, onDismiss = { showCycleDropdown = false }, items = state.billingCycles.map { it.name }) { selectedName: String ->
+                            billingCycleId = state.billingCycles.find { it.name == selectedName }?.id ?: 3
+                        }
                     }
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -165,7 +216,6 @@ fun AddSubscriptionScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 3. SELECTOR DE COLOR
             FormLabel("Color de marca")
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 availableColors.forEach { color ->
@@ -173,29 +223,53 @@ fun AddSubscriptionScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f)) // Empuja el botón al final
+            Spacer(modifier = Modifier.weight(1f))
             Spacer(modifier = Modifier.height(40.dp))
 
-            // 4. BOTÓN GUARDAR
+            if (state.errorMessage.isNotEmpty()) {
+                Text(state.errorMessage, color = ErrorRed, fontSize = 12.sp, modifier = Modifier.padding(bottom = 12.dp))
+            }
+
             Button(
-                onClick = onSaveClick,
+                onClick = {
+                    if (subscriptionId != null) {
+                        viewModel.updateSubscription(
+                            id = subscriptionId,
+                            serviceName = name,
+                            amount = price.toDoubleOrNull() ?: 0.0,
+                            nextPaymentDate = dateDisplay,
+                            billingCycleId = billingCycleId,
+                            categoryId = categoryId,
+                            cardId = null
+                        )
+                    } else {
+                        viewModel.createSubscription(
+                            serviceName = name,
+                            amount = price.toDoubleOrNull() ?: 0.0,
+                            nextPaymentDate = dateDisplay,
+                            billingCycleId = billingCycleId,
+                            categoryId = categoryId,
+                            cardId = null
+                        )
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = GreenPrimary,
                     disabledContainerColor = GreenPrimary.copy(alpha = 0.5f)
                 ),
-                enabled = name.isNotEmpty() && price.isNotEmpty() && dateDisplay != "Seleccionar fecha"
+                enabled = name.isNotEmpty() && price.isNotEmpty() && dateDisplay != "Seleccionar fecha" && categoryId.isNotEmpty() && !state.isLoading
             ) {
-                Text(buttonText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                if (state.isLoading) {
+                    CircularProgressIndicator(color = White, modifier = Modifier.size(20.dp))
+                } else {
+                    Text(buttonText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
 }
-
-// ==========================================
-// COMPONENTES DEL FORMULARIO
-// ==========================================
 
 @Composable
 fun FormLabel(text: String) {

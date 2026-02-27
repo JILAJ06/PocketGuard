@@ -116,7 +116,10 @@ fun AppDrawer(
             DrawerSectionTitle("CUENTA")
 
             DrawerItem(Icons.Outlined.Person, "Mi Perfil", false) { onClose() }
-            DrawerItem(Icons.Outlined.Settings, "Configuración", false) { onClose() }
+            DrawerItem(Icons.Outlined.Settings, "Configuración", currentRoute == "configuracion") {
+                onNavigate("configuracion")
+                onClose()
+            }
             DrawerItem(Icons.AutoMirrored.Filled.Help, "Ayuda y Soporte", false) { onClose() }
         }
 

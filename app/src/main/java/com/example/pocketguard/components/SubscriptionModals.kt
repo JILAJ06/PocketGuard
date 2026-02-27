@@ -35,6 +35,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.example.pocketguard.components.PaymentCard
 import com.example.pocketguard.ui.theme.*
 import java.time.Instant
 import java.time.LocalDate
@@ -55,9 +56,11 @@ fun NewSubscriptionModal(
     initialCycle: String = "Mensual",
     initialDate: String = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
     initialCardId: String = "",
+    cards: List<PaymentCard> = emptyList(),
+    categories: List<SubCategoryData> = emptyList(),
 
     onDismiss: () -> Unit,
-    onSave: (String, String, String, String, String) -> Unit
+    onSave: (String, String, String, String, String, String?) -> Unit // Agregado cardId como sexto parámetro
 ) {
     // Estados
     var name by remember { mutableStateOf(initialName) }
@@ -68,32 +71,16 @@ fun NewSubscriptionModal(
     // Estado de Tarjeta Seleccionada
     var selectedCardId by remember { mutableStateOf(initialCardId) }
 
-    // Mock de tarjetas (Usa la clase PaymentCard definida en AlertModals.kt)
-    val myCards = remember {
-        listOf(
-            PaymentCard("1", "BBVA", "1234", Color(0xFF1976D2)),
-            PaymentCard("2", "Nu", "5678", Color(0xFF8E44AD)),
-            PaymentCard("3", "Santander", "9012", Color(0xFFC62828))
-        )
-    }
-
     // Estados de UI y Categorías
-    val categories = remember {
-        mutableStateListOf(
-            SubCategoryData("Alimentos", Icons.Outlined.Fastfood, Color(0xFFFFA500)),
-            SubCategoryData("Transporte", Icons.Outlined.DirectionsCar, Color(0xFF2ECC71)),
-            SubCategoryData("Compras", Icons.Outlined.ShoppingBag, Color(0xFF9146FF)),
-            SubCategoryData("Entretenimiento", Icons.Outlined.Movie, Color(0xFFE74C3C)),
-            SubCategoryData("Hogar", Icons.Outlined.Home, Color(0xFF00A4EF)),
-            SubCategoryData("Otros", Icons.Outlined.MoreHoriz, Color(0xFF95A5A6))
-        )
+    var mutableCategories by remember {
+        mutableStateOf(categories.toMutableList())
     }
 
     // Lógica para preseleccionar categoría si estamos editando
     var selectedCategoryIndex by remember {
         mutableStateOf(
             if (initialCategory.isNotEmpty()) {
-                val index = categories.indexOfFirst { it.name == initialCategory }
+                val index = mutableCategories.indexOfFirst { it.name == initialCategory }
                 if (index != -1) index else 0
             } else 0
         )
@@ -134,8 +121,8 @@ fun NewSubscriptionModal(
         NewCategoryDialog(
             onDismiss = { showNewCategoryDialog = false },
             onSave = { catName, catIcon, catColor ->
-                categories.add(SubCategoryData(catName, catIcon, catColor))
-                selectedCategoryIndex = categories.lastIndex
+                mutableCategories.add(SubCategoryData(catName, catIcon, catColor))
+                selectedCategoryIndex = mutableCategories.lastIndex
                 showNewCategoryDialog = false
             }
         )
@@ -185,9 +172,9 @@ fun NewSubscriptionModal(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.height(360.dp) // Espacio suficiente para 3 filas
                 ) {
-                    items(categories.size) { index ->
+                    items(mutableCategories.size) { index ->
                         BigCategoryItem(
-                            data = categories[index],
+                            data = mutableCategories[index],
                             isSelected = selectedCategoryIndex == index,
                             onClick = { selectedCategoryIndex = index },
                             onLongClick = { } // Dejar vacío si no quieres menú aquí
@@ -219,7 +206,7 @@ fun NewSubscriptionModal(
                 // 3. Selección de Tarjeta
                 ModalLabel("Método de Pago", Icons.Outlined.CreditCard)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(myCards) { card ->
+                    items(cards) { card ->
                         SelectableCardItem(
                             card = card,
                             isSelected = selectedCardId == card.id,
@@ -272,7 +259,16 @@ fun NewSubscriptionModal(
 
                 // Botón Guardar
                 Button(
-                    onClick = { onSave(name, price, categories[selectedCategoryIndex].name, selectedCycle, selectedDateDisplay) },
+                    onClick = {
+                        onSave(
+                            name,
+                            price,
+                            categories[selectedCategoryIndex].name,
+                            selectedCycle,
+                            selectedDateDisplay,
+                            if (selectedCardId.isEmpty()) null else selectedCardId // Pasar el ID de la tarjeta seleccionada
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),

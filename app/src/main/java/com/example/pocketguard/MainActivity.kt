@@ -7,10 +7,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.example.pocketguard.components.BottomNavBar
+import com.example.pocketguard.presentation.di.ServiceLocator
+import com.example.pocketguard.presentation.viewmodel.LoginViewModel
+import com.example.pocketguard.presentation.viewmodel.RegisterViewModel
 import com.example.pocketguard.screens.*
 import com.example.pocketguard.ui.theme.PocketGuardTheme
 
@@ -28,13 +32,23 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun PocketGuardNavigation() {
     val navController = rememberNavController()
+    val sessionManager = ServiceLocator.getSessionManager()
+    val isAuthenticated = remember { mutableStateOf(sessionManager.isSessionActive()) }
 
-    // Obtenemos la ruta actual para saber qué icono pintar
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Lógica para mostrar/ocultar la barra (solo visible en las 4 pantallas principales)
     val showBottomBar = currentRoute in listOf("inicio", "suscripciones", "gastos", "alertas")
+
+    LaunchedEffect(Unit) {
+        if (!isAuthenticated.value) {
+            navController.navigate("login") {
+                popUpTo(navController.graph.startDestinationId) {
+                    inclusive = true
+                }
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -43,7 +57,6 @@ fun PocketGuardNavigation() {
                     currentRoute = currentRoute,
                     onNavigate = { route ->
                         navController.navigate(route) {
-                            // Evita acumular pantallas en la pila al navegar entre tabs
                             popUpTo(navController.graph.startDestinationId) {
                                 saveState = true
                             }
@@ -55,36 +68,81 @@ fun PocketGuardNavigation() {
             }
         }
     ) { innerPadding ->
-        // El NavHost ahora recibe el padding del Scaffold para no tapar contenido con la barra
         NavHost(
             navController = navController,
-            startDestination = "inicio",
+            startDestination = if (isAuthenticated.value) "inicio" else "login",
             modifier = Modifier.padding(innerPadding)
         ) {
-            // --- 1. INICIO ---
-            composable("inicio") {
-                HomeScreen() // Ya no necesita onOpenDrawer
-            }
+            composable("login") {
+                val loginViewModel: LoginViewModel = viewModel(
+                    factory = ServiceLocator.getLoginViewModelFactory()
+                )
 
-            // --- 2. SUSCRIPCIONES ---
-            composable("suscripciones") {
-                SubscriptionsScreen(
-                    onAddClick = { navController.navigate("add_subscription") },
-                    onEditClick = { id -> navController.navigate("add_subscription?id=$id") }
+                LoginScreen(
+                    viewModel = loginViewModel,
+                    onLoginSuccess = {
+                        isAuthenticated.value = true
+                        navController.navigate("inicio") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                    },
+                    onRegisterLinkClick = { navController.navigate("register") },
+                    onGoogleClick = { }
                 )
             }
 
-            // --- 3. GASTOS ---
+            composable("register") {
+                val registerViewModel: RegisterViewModel = viewModel(
+                    factory = ServiceLocator.getRegisterViewModelFactory()
+                )
+
+                SignUpScreen(
+                    viewModel = registerViewModel,
+                    onRegisterSuccess = {
+                        isAuthenticated.value = true
+                        navController.navigate("inicio") {
+                            popUpTo("register") { inclusive = true }
+                        }
+                    },
+                    onLoginLinkClick = { navController.navigate("login") },
+                    onGoogleClick = { }
+                )
+            }
+
+            composable("inicio") {
+                HomeScreen()
+            }
+
             composable("gastos") {
-                ExpensesScreen()
+                ExpensesScreen(
+                    onAuthExpired = {
+                        sessionManager.clearSession()
+                        isAuthenticated.value = false
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.startDestinationId) {
+                                inclusive = true
+                            }
+                        }
+                    }
+                )
             }
 
-            // --- 4. ALERTAS ---
-            composable("alertas") {
-                AlertsScreen()
+            composable("suscripciones") {
+                SubscriptionsScreen(
+                    onAddClick = { navController.navigate("add_subscription") },
+                    onEditClick = { id -> navController.navigate("add_subscription?id=$id") },
+                    onAuthExpired = {
+                        sessionManager.clearSession()
+                        isAuthenticated.value = false
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.startDestinationId) {
+                                inclusive = true
+                            }
+                        }
+                    }
+                )
             }
 
-            // --- PANTALLAS SECUNDARIAS (Sin barra inferior) ---
             composable(
                 route = "add_subscription?id={id}",
                 arguments = listOf(navArgument("id") { type = NavType.StringType; nullable = true; defaultValue = null })
@@ -93,7 +151,45 @@ fun PocketGuardNavigation() {
                 AddSubscriptionScreen(
                     subscriptionId = subscriptionId,
                     onBackClick = { navController.popBackStack() },
-                    onSaveClick = { navController.popBackStack() }
+                    onSaveClick = { navController.popBackStack() },
+                    onAuthExpired = {
+                        sessionManager.clearSession()
+                        isAuthenticated.value = false
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.startDestinationId) {
+                                inclusive = true
+                            }
+                        }
+                    }
+                )
+            }
+
+            composable("alertas") {
+                AlertsScreen(
+                    onAuthExpired = {
+                        sessionManager.clearSession()
+                        isAuthenticated.value = false
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.startDestinationId) {
+                                inclusive = true
+                            }
+                        }
+                    }
+                )
+            }
+
+            composable("configuracion") {
+                SettingsScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onAuthExpired = {
+                        sessionManager.clearSession()
+                        isAuthenticated.value = false
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.startDestinationId) {
+                                inclusive = true
+                            }
+                        }
+                    }
                 )
             }
         }

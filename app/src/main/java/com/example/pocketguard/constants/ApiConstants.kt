@@ -1,7 +1,7 @@
 package com.example.pocketguard.constants
 
 object ApiConstants {
-    const val BASE_URL = "http://localhost:3001/api/v1/"
+    const val BASE_URL = "http://10.0.2.2:3001/api/v1/"
     const val AUTH_ENDPOINT = "auth"
 
     // Endpoints de autenticación

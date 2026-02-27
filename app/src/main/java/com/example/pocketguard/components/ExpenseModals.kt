@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -41,14 +42,15 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 // Estructura de datos
-data class ExpenseCategoryData(val name: String, val icon: ImageVector, val color: Color)
+data class ExpenseCategoryData(val id: String, val name: String, val icon: ImageVector, val color: Color)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewExpenseModal(
+    categories: List<ExpenseCategoryData>,
     onDismiss: () -> Unit,
     onSave: (String, String, String, String) -> Unit, // Desc, Monto, Categoria, Fecha
-    onNewCategoryClick: () -> Unit // (Opcional, ya que lo manejamos interno ahora)
+    onCreateCategory: (String, String?) -> Unit // (Opcional, ya que lo manejamos interno ahora)
 ) {
     var description by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
@@ -57,25 +59,11 @@ fun NewExpenseModal(
     // --- ESTADO PARA NUEVA CATEGORÍA ---
     var showNewCategoryDialog by remember { mutableStateOf(false) }
 
-    // Lista Mutable para poder agregar categorías
-    val categories = remember {
-        mutableStateListOf(
-            ExpenseCategoryData("Alimentos", Icons.Outlined.Fastfood, Color(0xFFFFA500)),
-            ExpenseCategoryData("Transporte", Icons.Outlined.DirectionsCar, Color(0xFF2ECC71)),
-            ExpenseCategoryData("Compras", Icons.Outlined.ShoppingBag, Color(0xFF9146FF)),
-            ExpenseCategoryData("Hogar", Icons.Outlined.Home, Color(0xFF00A4EF)),
-            ExpenseCategoryData("Ocio", Icons.Outlined.Movie, Color(0xFFE74C3C)),
-            ExpenseCategoryData("Salud", Icons.Outlined.FavoriteBorder, Color(0xFFE91E63)),
-            ExpenseCategoryData("Educación", Icons.Outlined.School, Color(0xFF34495E)),
-            ExpenseCategoryData("Otros", Icons.Outlined.MoreHoriz, Color(0xFF95A5A6))
-        )
-    }
-
     val amountFocusRequester = remember { FocusRequester() }
     var showDatePicker by remember { mutableStateOf(false) }
 
     var selectedDateDisplay by remember {
-        mutableStateOf(LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+        mutableStateOf(LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
     }
 
     val datePickerState = rememberDatePickerState()
@@ -88,7 +76,7 @@ fun NewExpenseModal(
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
                         val date = java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
-                        selectedDateDisplay = date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                        selectedDateDisplay = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
                     }
                     showDatePicker = false
                 }) { Text("Aceptar", fontWeight = FontWeight.Bold, color = GreenPrimary) }
@@ -104,10 +92,8 @@ fun NewExpenseModal(
     if (showNewCategoryDialog) {
         NewCategoryDialog(
             onDismiss = { showNewCategoryDialog = false },
-            onSave = { name, icon, color ->
-                // Agregar a la lista y seleccionar
-                categories.add(ExpenseCategoryData(name, icon, color))
-                selectedCategoryIndex = categories.lastIndex
+            onSave = { name, _, color ->
+                onCreateCategory(name, colorToHex(color))
                 showNewCategoryDialog = false
             }
         )
@@ -209,10 +195,15 @@ fun NewExpenseModal(
 
                 // Botón
                 Button(
-                    onClick = { onSave(description, amount, categories[selectedCategoryIndex].name, selectedDateDisplay) },
+                    onClick = {
+                        val selected = categories.getOrNull(selectedCategoryIndex)
+                        if (selected != null) {
+                            onSave(description, amount, selected.id, selectedDateDisplay)
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
-                    enabled = amount.isNotEmpty() && description.isNotEmpty()
+                    enabled = amount.isNotEmpty() && description.isNotEmpty() && categories.isNotEmpty()
                 ) {
                     Text("Agregar Gasto", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
@@ -220,6 +211,11 @@ fun NewExpenseModal(
             }
         }
     }
+}
+
+fun colorToHex(color: Color): String {
+    val value = color.toArgb() and 0xFFFFFF
+    return String.format("#%06X", value)
 }
 
 // ==========================================

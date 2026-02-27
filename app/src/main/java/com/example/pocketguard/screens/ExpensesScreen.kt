@@ -28,10 +28,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.pocketguard.components.ExpenseCategoryData
 import com.example.pocketguard.components.NewExpenseModal
+import com.example.pocketguard.data.models.Expense
+import com.example.pocketguard.presentation.di.ServiceLocator
+import com.example.pocketguard.presentation.viewmodel.CategoriesViewModel
+import com.example.pocketguard.presentation.viewmodel.ExpensesViewModel
 import com.example.pocketguard.ui.theme.*
 
-// Modelo de datos para Gastos
 data class ExpenseUI(
     val id: String,
     val title: String,
@@ -43,43 +49,68 @@ data class ExpenseUI(
     val color: Color
 )
 
-// Modelo para la Gráfica
 data class ChartPoint(val day: String, val value: Float, val displayAmount: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExpensesScreen() {
-    var showNewExpenseModal by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var expenseToDelete by remember { mutableStateOf<ExpenseUI?>(null) }
-    var selectedFilter by remember { mutableStateOf("Todas") }
-    var selectedDayIndex by remember { mutableStateOf<Int?>(null) }
-
-    // Gastos Mock
-    val expenses = remember {
-        mutableStateListOf(
-            ExpenseUI("1", "Starbucks", "Alimentos", "-$85", 85.0, "02-06", Icons.Outlined.LocalCafe, Color(0xFFFFA500)),
-            ExpenseUI("2", "Uber", "Transporte", "-$120", 120.0, "02-06", Icons.Outlined.DirectionsCar, Color(0xFF2ECC71)),
-            ExpenseUI("3", "Comida Subway", "Alimentos", "-$129", 129.0, "02-06", Icons.Outlined.Fastfood, Color(0xFFFFA500)),
-            ExpenseUI("4", "Supermercado", "Compras", "-$450", 450.0, "02-05", Icons.Outlined.ShoppingCart, Color(0xFF9146FF)),
-            ExpenseUI("5", "Cine", "Ocio", "-$180", 180.0, "02-04", Icons.Outlined.Movie, Color(0xFFE74C3C))
-        )
-    }
-
-    // Datos Gráfica
-    val weeklyData = listOf(
-        ChartPoint("vie", 0f, "$0"),
-        ChartPoint("sáb", 0f, "$0"),
-        ChartPoint("dom", 0f, "$0"),
-        ChartPoint("lun", 350f, "$350"),
-        ChartPoint("mar", 420f, "$420"),
-        ChartPoint("mié", 950f, "$950"),
-        ChartPoint("jue", 300f, "$300")
+fun ExpensesScreen(
+    onAuthExpired: () -> Unit = {}
+) {
+    val viewModel: ExpensesViewModel = viewModel(
+        factory = ServiceLocator.getExpensesViewModelFactory()
+    )
+    val categoriesViewModel: CategoriesViewModel = viewModel(
+        factory = ServiceLocator.getCategoriesViewModelFactory()
     )
 
-    // Filtros dinámicos
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val categoriesState by categoriesViewModel.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        categoriesViewModel.loadCategories()
+    }
+
+    LaunchedEffect(state.isUnauthorized || categoriesState.isUnauthorized) {
+        if (state.isUnauthorized || categoriesState.isUnauthorized) {
+            onAuthExpired()
+        }
+    }
+
+    var showNewExpenseModal by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
+
+    val categoryItems: List<ExpenseCategoryData> = remember(categoriesState.categories) {
+        categoriesState.categories.map { category ->
+            ExpenseCategoryData(
+                id = category.id,
+                name = category.name,
+                icon = Icons.Outlined.Category,
+                color = Color(android.graphics.Color.parseColor(category.color_hex ?: "#95A5A6"))
+            )
+        }
+    }
+
+    val expenses = remember(state.expenses) {
+        state.expenses.map { expense ->
+            ExpenseUI(
+                id = expense.id,
+                title = expense.name,
+                category = expense.categoryName,
+                amount = "-$${String.format("%.2f", expense.amount)}",
+                amountValue = expense.amount,
+                date = expense.expenseDate.substring(5, 10).replace("-", "-"),
+                icon = Icons.Outlined.ShoppingCart,
+                color = Color(android.graphics.Color.parseColor(expense.categoryColor))
+            )
+        }
+    }
+
     val usedCategories by remember(expenses) { derivedStateOf { expenses.map { it.category }.distinct().sorted() } }
     val dynamicFilters by remember(usedCategories) { derivedStateOf { listOf("Todas") + usedCategories } }
+
+    var selectedFilter by remember { mutableStateOf("Todas") }
+    var selectedDayIndex by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(dynamicFilters) {
         if (selectedFilter != "Todas" && selectedFilter !in usedCategories) selectedFilter = "Todas"
@@ -88,15 +119,26 @@ fun ExpensesScreen() {
     val filteredExpenses = if (selectedFilter == "Todas") expenses else expenses.filter { it.category == selectedFilter }
     val currentTotal = filteredExpenses.sumOf { it.amountValue }
 
-    // Dialogo Eliminar
+    val weeklyData = remember(filteredExpenses) {
+        val daysOfWeek = listOf("dom", "lun", "mar", "mié", "jue", "vie", "sáb")
+        val today = java.time.LocalDate.now()
+        daysOfWeek.mapIndexed { index, day ->
+            val targetDate = today.minusDays((6 - index).toLong())
+            val total = filteredExpenses
+                .filter { it.date.startsWith(targetDate.toString().substring(5, 10)) }
+                .sumOf { it.amountValue }
+            ChartPoint(day, total.toFloat(), "$${"%.0f".format(total)}")
+        }
+    }
+
     if (showDeleteDialog && expenseToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             containerColor = White,
             icon = { Icon(Icons.Outlined.Delete, null, tint = ErrorRed) },
             title = { Text("Eliminar Gasto", fontWeight = FontWeight.Bold, color = TextDark) },
-            text = { Text("¿Eliminar '${expenseToDelete?.title}'?", color = TextGray) },
-            confirmButton = { Button(onClick = { expenses.remove(expenseToDelete); showDeleteDialog = false; expenseToDelete = null }, colors = ButtonDefaults.buttonColors(containerColor = ErrorRed)) { Text("Eliminar", fontWeight = FontWeight.Bold) } },
+            text = { Text("¿Eliminar '${expenseToDelete?.name}'?", color = TextGray) },
+            confirmButton = { Button(onClick = { viewModel.deleteExpense(expenseToDelete!!.id); showDeleteDialog = false; expenseToDelete = null }, colors = ButtonDefaults.buttonColors(containerColor = ErrorRed)) { Text("Eliminar", fontWeight = FontWeight.Bold) } },
             dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar", color = TextDark) } }
         )
     }
@@ -117,79 +159,94 @@ fun ExpensesScreen() {
             }
         }
     ) { paddingValues ->
-        Column(modifier = Modifier.fillMaxSize().padding(paddingValues).verticalScroll(rememberScrollState()).padding(20.dp)) {
-
-            Text("Gastos Diarios", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
-            Text("Registra tus gastos", fontSize = 13.sp, color = TextGray)
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                QuickActionButton("Café", "$50", Icons.Filled.LocalCafe)
-                QuickActionButton("Comida", "$150", Icons.Filled.Restaurant)
-                QuickActionButton("Transporte", "$100", Icons.Filled.DirectionsCar)
-                QuickActionButton("Snack", "$30", Icons.Filled.ShoppingCart)
+        if (state.isLoading) {
+            Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = GreenPrimary)
             }
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                SummaryCardDark(title = "Hoy", amount = "$334", modifier = Modifier.weight(1f))
-                Spacer(modifier = Modifier.width(12.dp))
-                SummaryCardLight(title = "Mes", amount = "$2064", icon = "$", color = GreenPrimary, modifier = Modifier.weight(1f))
-                Spacer(modifier = Modifier.width(12.dp))
-                SummaryCardLight(title = "Hormiga", amount = "$85", icon = "🏷️", color = TextDark, modifier = Modifier.weight(1f))
+        } else if (state.errorMessage.isNotEmpty()) {
+            Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
+                Text(state.errorMessage, color = ErrorRed, fontSize = 14.sp)
             }
-            Spacer(modifier = Modifier.height(20.dp))
+        } else {
+            Column(modifier = Modifier.fillMaxSize().padding(paddingValues).verticalScroll(rememberScrollState()).padding(20.dp)) {
 
-            // --- GRÁFICA "HOME STYLE" ---
-            Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(0.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Tendencia Semanal", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
-                        if (selectedDayIndex != null) Text(text = weeklyData[selectedDayIndex!!].displayAmount, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = GreenPrimary)
-                    }
-                    Spacer(modifier = Modifier.height(24.dp))
+                Text("Gastos Diarios", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                Text("Registra tus gastos", fontSize = 13.sp, color = TextGray)
+                Spacer(modifier = Modifier.height(20.dp))
 
-                    // COMPONENTE DE GRÁFICA MEJORADO
-                    ProfessionalBarChart(
-                        data = weeklyData,
-                        selectedIndex = selectedDayIndex,
-                        onBarClick = { selectedDayIndex = if (selectedDayIndex == it) null else it }
-                    )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    QuickActionButton("Café", "$50", Icons.Filled.LocalCafe)
+                    QuickActionButton("Comida", "$150", Icons.Filled.Restaurant)
+                    QuickActionButton("Transporte", "$100", Icons.Filled.DirectionsCar)
+                    QuickActionButton("Snack", "$30", Icons.Filled.ShoppingCart)
                 }
-            }
-            Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(dynamicFilters) { filter -> FilterChipUI(text = filter, isSelected = selectedFilter == filter, onClick = { selectedFilter = filter }) }
-            }
-            Spacer(modifier = Modifier.height(20.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    SummaryCardDark(title = "Hoy", amount = "$${String.format("%.2f", currentTotal)}", modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    SummaryCardLight(title = "Mes", amount = "$${String.format("%.2f", expenses.sumOf { it.amountValue })}", icon = "$", color = GreenPrimary, modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    SummaryCardLight(title = "Hormiga", amount = "$${String.format("%.2f", expenses.minOfOrNull { it.amountValue } ?: 0.0)}", icon = "🏷️", color = TextDark, modifier = Modifier.weight(1f))
+                }
+                Spacer(modifier = Modifier.height(20.dp))
 
-            Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Lista de Gastos", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
-                        Text("$${String.format("%.2f", currentTotal)}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
+                Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(0.dp), modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("Tendencia Semanal", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
+                            if (selectedDayIndex != null) Text(text = weeklyData[selectedDayIndex!!].displayAmount, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = GreenPrimary)
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        ProfessionalBarChart(
+                            data = weeklyData,
+                            selectedIndex = selectedDayIndex,
+                            onBarClick = { selectedDayIndex = if (selectedDayIndex == it) null else it }
+                        )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    if (filteredExpenses.isEmpty()) Text("No hay gastos en esta categoría.", color = TextGray, fontSize = 14.sp, modifier = Modifier.padding(vertical = 20.dp).align(Alignment.CenterHorizontally))
-                    else {
-                        filteredExpenses.forEach { expense ->
-                            ExpenseListItem(expense = expense, onDelete = { expenseToDelete = expense; showDeleteDialog = true })
-                            if (expense != filteredExpenses.last()) Spacer(modifier = Modifier.height(16.dp))
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(dynamicFilters) { filter -> FilterChipUI(text = filter, isSelected = selectedFilter == filter, onClick = { selectedFilter = filter; viewModel.setFilter(filter) }) }
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Lista de Gastos", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
+                            Text("$${String.format("%.2f", currentTotal)}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        if (filteredExpenses.isEmpty()) Text("No hay gastos en esta categoría.", color = TextGray, fontSize = 14.sp, modifier = Modifier.padding(vertical = 20.dp).align(Alignment.CenterHorizontally))
+                        else {
+                            filteredExpenses.forEach { expense ->
+                                ExpenseListItem(expense = expense, onDelete = { expenseToDelete = state.expenses.find { it.id == expense.id }; showDeleteDialog = true })
+                                if (expense != filteredExpenses.last()) Spacer(modifier = Modifier.height(16.dp))
+                            }
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(80.dp))
             }
-            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 
     if (showNewExpenseModal) {
-        NewExpenseModal(onDismiss = { showNewExpenseModal = false }, onNewCategoryClick = { }, onSave = { desc, amountStr, category, date ->
-            val amountValue = amountStr.toDoubleOrNull() ?: 0.0
-            expenses.add(0, ExpenseUI(id = System.currentTimeMillis().toString(), title = desc, category = category, amount = "-$$amountStr", amountValue = amountValue, date = date.substring(0,5), icon = Icons.Outlined.ShoppingCart, color = GreenPrimary))
-            showNewExpenseModal = false
-        })
+        NewExpenseModal(
+            categories = categoryItems,
+            onDismiss = { showNewExpenseModal = false },
+            onSave = { desc, amountStr, categoryId, date ->
+                val amountValue = amountStr.toDoubleOrNull() ?: 0.0
+                viewModel.createExpense(desc, amountValue, date, categoryId)
+                showNewExpenseModal = false
+            },
+            onCreateCategory = { name, colorHex ->
+                categoriesViewModel.createCategory(name, null, colorHex)
+            }
+        )
     }
 }
 

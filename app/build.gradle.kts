@@ -5,11 +5,7 @@ plugins {
 
 android {
     namespace = "com.example.pocketguard"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.pocketguard"
@@ -42,6 +38,7 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -56,25 +53,23 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    //My dependencies
+
+    // Material Design 3 e Íconos
     implementation(libs.androidx.material3)
     implementation(libs.androidx.compose.material.icons.extended)
-    // BOM de Compose (Maneja las versiones por ti)
-    val composeBom = platform("androidx.compose:compose-bom:2023.08.00") // O una versión reciente
-    implementation(composeBom)
-
-    // UI Básica
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-
-    // Material Design 3
-    implementation(libs.material3)
-
-    // Necesaria para Icons.Outlined.Visibility, AccountCircle, etc.
-    implementation(libs.androidx.material.icons.extended)
-    implementation(libs.material.icons.extended) // La que pusimos antes
-
-    // --- NUEVA: NAVEGACIÓN ---
     implementation(libs.androidx.navigation.compose)
+
+    // --- NETWORKING ---
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.gson)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    implementation(libs.gson)
+
+    // --- COROUTINES ---
+    implementation(libs.coroutines.core)
+    implementation(libs.coroutines.android)
+
+    // --- SERIALIZATION ---
+    implementation(libs.kotlinx.serialization)
 }
