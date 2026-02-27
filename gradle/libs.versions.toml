@@ -12,6 +12,8 @@ material3 = "1.4.0"
 materialIconsExtended = "1.7.8"
 navigationCompose = "2.9.7"
 foundation = "1.10.3"
+room = "2.6.1"
+ksp = "2.0.21-1.0.26"
 
 [libraries]
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
@@ -38,8 +40,11 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 material3 = { module = "androidx.compose.material3:material3" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
