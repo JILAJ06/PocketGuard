@@ -60,11 +60,11 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
 
     // --- NETWORKING ---
-    implementation(libs.retrofit)
+    implementation(libs.retrofit.lib)
     implementation(libs.retrofit.gson)
-    implementation(libs.okhttp)
+    implementation(libs.okhttp.lib)
     implementation(libs.okhttp.logging)
-    implementation(libs.gson)
+    implementation(libs.gson.lib)
 
     // --- COROUTINES ---
     implementation(libs.coroutines.core)

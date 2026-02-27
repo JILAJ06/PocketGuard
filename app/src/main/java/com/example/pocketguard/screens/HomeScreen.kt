@@ -36,7 +36,8 @@ import androidx.compose.animation.shrinkVertically
 // Cambia la firma de HomeScreen para recibir el callback
 @Composable
 fun HomeScreen(
-    onOpenDrawer: () -> Unit = {} // Nuevo parámetro con valor por defecto
+    onOpenDrawer: () -> Unit = {}, // Nuevo parámetro con valor por defecto
+    onNavigateToSettings: () -> Unit = {} // Agregar callback para configuración
 ) {
     Scaffold(
         containerColor = BackgroundLight
@@ -48,7 +49,7 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             // Pasamos el evento al Header
-            HomeHeaderSection()
+            HomeHeaderSection(onNavigateToSettings = onNavigateToSettings)
 
             // ... (Resto del contenido igual: Spacer, QuickStatsRow, etc.) ...
             Spacer(modifier = Modifier.height(16.dp))
@@ -71,7 +72,7 @@ fun HomeScreen(
 
 // Actualiza el Header para tener el icono de Menú
 @Composable
-fun HomeHeaderSection() {
+fun HomeHeaderSection(onNavigateToSettings: () -> Unit = {}) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -90,12 +91,33 @@ fun HomeHeaderSection() {
                     Text("Gestor de Gastos", fontSize = 12.sp, color = White.copy(alpha = 0.8f))
                 }
 
-                // Lado Derecho: Avatar
-                Box(
-                    modifier = Modifier.size(40.dp).clip(CircleShape).background(White.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
+                // Lado Derecho: Botón de configuración
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("UD", color = White, fontWeight = FontWeight.Bold)
+                    // Botón de configuración
+                    IconButton(
+                        onClick = onNavigateToSettings,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(White.copy(alpha = 0.2f))
+                    ) {
+                        Icon(
+                            Icons.Outlined.Settings,
+                            contentDescription = "Configuración",
+                            tint = White
+                        )
+                    }
+
+                    // Avatar
+                    Box(
+                        modifier = Modifier.size(40.dp).clip(CircleShape).background(White.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("UD", color = White, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 

@@ -25,6 +25,7 @@ sealed class BottomNavItem(
     object Suscripciones : BottomNavItem("suscripciones", "Suscripciones", Icons.Default.CreditCard, Icons.Outlined.CreditCard)
     object Gastos : BottomNavItem("gastos", "Gastos", Icons.Default.AttachMoney, Icons.Outlined.AttachMoney)
     object Alertas : BottomNavItem("alertas", "Alertas", Icons.Default.Notifications, Icons.Outlined.Notifications)
+    object Configuracion : BottomNavItem("configuracion", "Ajustes", Icons.Default.Settings, Icons.Outlined.Settings)
 }
 
 @Composable
@@ -36,7 +37,8 @@ fun BottomNavBar(
         BottomNavItem.Inicio,
         BottomNavItem.Suscripciones,
         BottomNavItem.Gastos,
-        BottomNavItem.Alertas
+        BottomNavItem.Alertas,
+        BottomNavItem.Configuracion
     )
 
     NavigationBar(

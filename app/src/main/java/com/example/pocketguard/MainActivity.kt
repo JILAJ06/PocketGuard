@@ -110,7 +110,11 @@ fun PocketGuardNavigation() {
             }
 
             composable("inicio") {
-                HomeScreen()
+                HomeScreen(
+                    onNavigateToSettings = {
+                        navController.navigate("configuracion")
+                    }
+                )
             }
 
             composable("gastos") {
@@ -180,8 +184,16 @@ fun PocketGuardNavigation() {
 
             composable("configuracion") {
                 SettingsScreen(
-                    onBackClick = { navController.popBackStack() },
                     onAuthExpired = {
+                        sessionManager.clearSession()
+                        isAuthenticated.value = false
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.startDestinationId) {
+                                inclusive = true
+                            }
+                        }
+                    },
+                    onLogout = {
                         sessionManager.clearSession()
                         isAuthenticated.value = false
                         navController.navigate("login") {

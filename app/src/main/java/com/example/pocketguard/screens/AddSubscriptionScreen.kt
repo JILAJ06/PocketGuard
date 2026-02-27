@@ -171,7 +171,11 @@ fun AddSubscriptionScreen(
                         if (price.isEmpty()) Text("0.00", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = TextGray.copy(alpha = 0.3f))
                         BasicTextField(
                             value = price,
-                            onValueChange = { input -> if (input.all { it.isDigit() || it == '.' } && input.count { it == '.' } <= 1) price = input },
+                            onValueChange = { input ->
+                                if (input.all { char -> char.isDigit() || char == '.' } && input.count { char -> char == '.' } <= 1) {
+                                    price = input
+                                }
+                            },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             textStyle = TextStyle(color = TextDark, fontWeight = FontWeight.Bold, fontSize = 48.sp),
                             modifier = Modifier.width(IntrinsicSize.Min)

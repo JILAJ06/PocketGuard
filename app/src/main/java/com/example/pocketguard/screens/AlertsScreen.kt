@@ -26,7 +26,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.pocketguard.components.AlertSettingsModal
+import com.example.pocketguard.components.PaymentCard
+import com.example.pocketguard.presentation.di.ServiceLocator
+import com.example.pocketguard.presentation.viewmodel.BanksViewModel
+import com.example.pocketguard.presentation.viewmodel.CardsViewModel
 import com.example.pocketguard.ui.theme.*
 
 // --- MODELO DE DATOS MEJORADO ---
@@ -46,7 +52,43 @@ data class AlertItemUI(
 )
 
 @Composable
-fun AlertsScreen() {
+fun AlertsScreen(
+    onAuthExpired: () -> Unit = {}
+) {
+    val cardsViewModel: CardsViewModel = viewModel(
+        factory = ServiceLocator.getCardsViewModelFactory()
+    )
+    val banksViewModel: BanksViewModel = viewModel(
+        factory = ServiceLocator.getBanksViewModelFactory()
+    )
+
+    val cardsState by cardsViewModel.state.collectAsStateWithLifecycle()
+    val banksState by banksViewModel.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        cardsViewModel.loadCards()
+        banksViewModel.loadBanks()
+    }
+
+    LaunchedEffect(cardsState.isUnauthorized || banksState.isUnauthorized) {
+        if (cardsState.isUnauthorized || banksState.isUnauthorized) {
+            onAuthExpired()
+        }
+    }
+
+    val cards = remember(cardsState.cards) {
+        cardsState.cards.map { card ->
+            PaymentCard(
+                id = card.card_id,
+                name = if (card.alias.isNotEmpty()) card.alias else card.bank_name,
+                last4 = card.last_4_digits ?: "",
+                color = Color(android.graphics.Color.parseColor(card.color_hex ?: "#4A90E2"))
+            )
+        }
+    }
+
+    val banks = remember(banksState.banks) { banksState.banks.map { it.name } }
+
     var showSettingsModal by remember { mutableStateOf(false) }
 
     // Estado de Filtro
@@ -237,7 +279,13 @@ fun AlertsScreen() {
     }
 
     if (showSettingsModal) {
-        AlertSettingsModal(onDismiss = { showSettingsModal = false })
+        AlertSettingsModal(
+            onDismiss = { showSettingsModal = false },
+            onSavePreferences = { days ->
+                // TODO: Guardar días de anticipación en preferencias
+                // Aquí puedes usar NotificationsViewModel o crear un endpoint específico
+            }
+        )
     }
 }
 
