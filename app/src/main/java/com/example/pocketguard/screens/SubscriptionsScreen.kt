@@ -27,6 +27,8 @@ import com.example.pocketguard.data.models.Subscription
 import com.example.pocketguard.presentation.di.ServiceLocator
 import com.example.pocketguard.presentation.viewmodel.SubscriptionsViewModel
 import com.example.pocketguard.ui.theme.*
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 fun getCategoryIcon(categoryName: String): ImageVector {
     return when (categoryName.lowercase()) {
@@ -53,7 +55,8 @@ data class SubscriptionUI(
     val categoryName: String,
     val daysLeft: Int,
     val icon: ImageVector,
-    val color: Color
+    val color: Color,
+    val cardId: String? // Agregamos cardId para poder editar correctamente
 )
 
 @Composable
@@ -87,9 +90,15 @@ fun SubscriptionsScreen(
         }
     }
 
+    // Estados para Modals y Dialogs
     var showDeleteDialog by remember { mutableStateOf(false) }
     var subscriptionToDelete by remember { mutableStateOf<Subscription?>(null) }
+
     var showAddModal by remember { mutableStateOf(false) }
+    var showEditModal by remember { mutableStateOf(false) }
+
+    // Almacenamos la suscripción que se va a editar (UI Model)
+    var subscriptionToEdit by remember { mutableStateOf<SubscriptionUI?>(null) }
 
     // Mapear tarjetas
     val cards = remember(cardsState.cards) {
@@ -125,11 +134,13 @@ fun SubscriptionsScreen(
                 categoryName = sub.category_name,
                 daysLeft = sub.days_until_payment,
                 icon = Icons.Default.CreditCard,
-                color = Color(android.graphics.Color.parseColor(sub.category_color))
+                color = Color(android.graphics.Color.parseColor(sub.category_color)),
+                cardId = sub.card_id
             )
         }
     }
 
+    // --- DIÁLOGO DE ELIMINAR ---
     if (showDeleteDialog && subscriptionToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -173,7 +184,7 @@ fun SubscriptionsScreen(
         )
     }
 
-    // Modal de Nueva Suscripción
+    // --- MODAL AGREGAR SUSCRIPCIÓN ---
     if (showAddModal) {
         com.example.pocketguard.components.NewSubscriptionModal(
             cards = cards,
@@ -188,26 +199,73 @@ fun SubscriptionsScreen(
                 }
                 val categoryId = categoriesState.categories.firstOrNull { it.name == category }?.id ?: ""
 
-                // Convertir fecha de dd/MM/yyyy a YYYY-MM-DD
                 val formattedDate = try {
                     val inputFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
                     val outputFormatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
                     val localDate = java.time.LocalDate.parse(date, inputFormatter)
                     localDate.format(outputFormatter)
-                } catch (e: Exception) {
-                    date // Si falla, usar el original
-                }
+                } catch (e: Exception) { date }
 
-                // Crear la suscripción con el cardId de la tarjeta seleccionada
                 viewModel.createSubscription(
                     serviceName = name,
                     amount = price.toDoubleOrNull() ?: 0.0,
                     nextPaymentDate = formattedDate,
                     billingCycleId = billingCycleId,
                     categoryId = categoryId,
-                    cardId = cardId // ✅ Ahora usa el ID de la tarjeta seleccionada
+                    cardId = cardId
                 )
                 showAddModal = false
+            }
+        )
+    }
+
+    // --- MODAL EDITAR SUSCRIPCIÓN ---
+    if (showEditModal && subscriptionToEdit != null) {
+        val sub = subscriptionToEdit!!
+        com.example.pocketguard.components.NewSubscriptionModal(
+            // Pasar datos actuales
+            initialName = sub.name,
+            initialPrice = sub.price,
+            initialCategory = sub.categoryName,
+            initialCycle = sub.cycle,
+            // Convertir YYYY-MM-DD a dd/MM/yyyy para mostrar
+            initialDate = try {
+                val input = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                val output = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                java.time.LocalDate.parse(sub.nextDate, input).format(output)
+            } catch (e: Exception) { sub.nextDate },
+            initialCardId = sub.cardId ?: "",
+
+            cards = cards,
+            categories = categories,
+
+            onDismiss = {
+                showEditModal = false
+                subscriptionToEdit = null
+            },
+            onSave = { name, price, category, cycle, date, cardId ->
+                val billingCycleId = when (cycle) {
+                    "Diario" -> 1; "Semanal" -> 2; "Anual" -> 4; else -> 3
+                }
+                val categoryId = categoriesState.categories.firstOrNull { it.name == category }?.id ?: ""
+
+                val formattedDate = try {
+                    val input = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                    val output = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                    java.time.LocalDate.parse(date, input).format(output)
+                } catch (e: Exception) { date }
+
+                viewModel.updateSubscription(
+                    subscriptionId = sub.id,
+                    serviceName = name,
+                    amount = price.toDoubleOrNull() ?: 0.0,
+                    nextPaymentDate = formattedDate,
+                    billingCycleId = billingCycleId,
+                    categoryId = categoryId,
+                    cardId = cardId
+                )
+                showEditModal = false
+                subscriptionToEdit = null
             }
         )
     }
@@ -231,7 +289,8 @@ fun SubscriptionsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            SubscriptionsHeader(total = "$$${String.format("%.2f", state.totalMonthly)}")
+            // Header con un solo $
+            SubscriptionsHeader(total = "$${String.format("%.2f", state.totalMonthly)}")
 
             if (state.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -252,8 +311,13 @@ fun SubscriptionsScreen(
                     items(subscriptions) { sub ->
                         SubscriptionPremiumCard(
                             subscription = sub,
-                            onClick = { onEditClick(sub.id) },
+                            onClick = {
+                                // ABRIR MODAL DE EDICIÓN
+                                subscriptionToEdit = sub
+                                showEditModal = true
+                            },
                             onLongClick = {
+                                // ABRIR DIÁLOGO DE ELIMINAR
                                 subscriptionToDelete = state.subscriptions.find { it.subscription_id == sub.id }
                                 showDeleteDialog = true
                             }
@@ -307,7 +371,7 @@ fun SubscriptionsHeader(total: String) {
 fun SubscriptionPremiumCard(
     subscription: SubscriptionUI,
     onClick: () -> Unit,
-    onLongClick: () -> Unit // <--- Nuevo parámetro
+    onLongClick: () -> Unit // Parámetro para detección de pulsación larga
 ) {
     val isUrgent = subscription.daysLeft <= 5
 
@@ -317,8 +381,7 @@ fun SubscriptionPremiumCard(
         elevation = CardDefaults.cardElevation(2.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp)) // Importante para el ripple effect
-            // Usamos combinedClickable en lugar de clickable simple
+            .clip(RoundedCornerShape(20.dp))
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -348,9 +411,9 @@ fun SubscriptionPremiumCard(
                 Text(subscription.cycle, fontSize = 12.sp, color = TextGray)
             }
 
-            // Precio y Días
+            // Precio y Días (Con un solo $)
             Column(horizontalAlignment = Alignment.End) {
-                Text("-$$${subscription.price}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
+                Text("-$${subscription.price}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
                 Spacer(modifier = Modifier.height(8.dp))
                 // Badge de días
                 Box(

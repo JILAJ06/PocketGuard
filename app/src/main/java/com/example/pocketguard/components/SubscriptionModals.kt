@@ -1,15 +1,14 @@
 package com.example.pocketguard.components
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -25,10 +24,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -43,11 +42,9 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 // --- DATOS MOCK ---
-// NOTA: Eliminé 'data class PaymentCard' de aquí porque ya existe en AlertModals.kt
-// Solo dejamos SubCategoryData porque es específica de aquí (o podrías moverla también)
-data class SubCategoryData(val name: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val color: Color)
+data class SubCategoryData(val name: String, val icon: ImageVector, val color: Color)
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewSubscriptionModal(
     initialName: String = "",
@@ -60,15 +57,13 @@ fun NewSubscriptionModal(
     categories: List<SubCategoryData> = emptyList(),
 
     onDismiss: () -> Unit,
-    onSave: (String, String, String, String, String, String?) -> Unit // Agregado cardId como sexto parámetro
+    onSave: (String, String, String, String, String, String?) -> Unit
 ) {
     // Estados
     var name by remember { mutableStateOf(initialName) }
     var price by remember { mutableStateOf(initialPrice) }
     var selectedCycle by remember { mutableStateOf(initialCycle) }
     var selectedDateDisplay by remember { mutableStateOf(initialDate) }
-
-    // Estado de Tarjeta Seleccionada
     var selectedCardId by remember { mutableStateOf(initialCardId) }
 
     // Estados de UI y Categorías
@@ -76,7 +71,7 @@ fun NewSubscriptionModal(
         mutableStateOf(categories.toMutableList())
     }
 
-    // Lógica para preseleccionar categoría si estamos editando
+    // Preselección de categoría
     var selectedCategoryIndex by remember {
         mutableStateOf(
             if (initialCategory.isNotEmpty()) {
@@ -118,7 +113,7 @@ fun NewSubscriptionModal(
 
     // --- DIÁLOGO DE NUEVA CATEGORÍA ---
     if (showNewCategoryDialog) {
-        NewCategoryDialog(
+        SubNewCategoryDialog(
             onDismiss = { showNewCategoryDialog = false },
             onSave = { catName, catIcon, catColor ->
                 mutableCategories.add(SubCategoryData(catName, catIcon, catColor))
@@ -166,22 +161,25 @@ fun NewSubscriptionModal(
 
                 // 2. Categorías
                 ModalLabel("Selecciona Categoría", Icons.Outlined.Category)
+
+                val rows = (mutableCategories.size + 1 + 2) / 3
+                val gridHeight = (rows * 100).dp
+
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.height(360.dp) // Espacio suficiente para 3 filas
+                    modifier = Modifier.height(gridHeight.coerceAtMost(360.dp))
                 ) {
                     items(mutableCategories.size) { index ->
                         BigCategoryItem(
                             data = mutableCategories[index],
                             isSelected = selectedCategoryIndex == index,
-                            onClick = { selectedCategoryIndex = index },
-                            onLongClick = { } // Dejar vacío si no quieres menú aquí
+                            onClick = { selectedCategoryIndex = index }
                         )
                     }
                     item {
-                        // Botón "Nueva" reutilizando el estilo cuadrado
+                        // Botón Nueva
                         Box(
                             modifier = Modifier
                                 .aspectRatio(1f)
@@ -263,10 +261,10 @@ fun NewSubscriptionModal(
                         onSave(
                             name,
                             price,
-                            categories[selectedCategoryIndex].name,
+                            mutableCategories[selectedCategoryIndex].name,
                             selectedCycle,
                             selectedDateDisplay,
-                            if (selectedCardId.isEmpty()) null else selectedCardId // Pasar el ID de la tarjeta seleccionada
+                            if (selectedCardId.isEmpty()) null else selectedCardId
                         )
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -276,6 +274,81 @@ fun NewSubscriptionModal(
                 ) { Text(if(initialName.isNotEmpty()) "Guardar Cambios" else "Crear Suscripción", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
 
                 Spacer(modifier = Modifier.height(40.dp))
+            }
+        }
+    }
+}
+
+// --- DIÁLOGO NUEVA CATEGORÍA (Diseño Grid) ---
+@Composable
+fun SubNewCategoryDialog(
+    onDismiss: () -> Unit,
+    onSave: (String, ImageVector, Color) -> Unit
+) {
+    var catName by remember { mutableStateOf("") }
+
+    val availableIcons = listOf(
+        Icons.Outlined.LocalCafe, Icons.Outlined.Fastfood, Icons.Outlined.DirectionsCar, Icons.Outlined.Flight, Icons.Outlined.ShoppingCart,
+        Icons.Outlined.CardGiftcard, Icons.Outlined.Checkroom, Icons.Outlined.Movie, Icons.Outlined.FavoriteBorder, Icons.Outlined.Home,
+        Icons.Outlined.Book, Icons.Outlined.PhoneAndroid
+    )
+    var selectedIcon by remember { mutableStateOf(availableIcons[0]) }
+
+    val availableColors = listOf(
+        Color(0xFF03A9F4), Color(0xFF2ECC71), Color(0xFFFF9800), Color(0xFF9B59B6), Color(0xFFE74C3C),
+        Color(0xFFE91E63), Color(0xFF34495E), Color(0xFF95A5A6), Color(0xFF1ABC9C)
+    )
+    var selectedColor by remember { mutableStateOf(availableColors[0]) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = White),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Nueva Categoría", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Input
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("Nombre", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(50.dp).background(InputBackground, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+                        if (catName.isEmpty()) Text("Ej: Viajes...", color = TextGray.copy(alpha = 0.5f))
+                        BasicTextField(value = catName, onValueChange = { catName = it }, textStyle = TextStyle(color = TextDark, fontSize = 16.sp), modifier = Modifier.fillMaxWidth())
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Iconos
+                Text("Icono", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyVerticalGrid(columns = GridCells.Fixed(5), verticalArrangement = Arrangement.spacedBy(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.height(100.dp)) {
+                    items(availableIcons) { icon ->
+                        Box(modifier = Modifier.size(40.dp).background(if(selectedIcon == icon) GreenPrimary.copy(0.2f) else InputBackground, RoundedCornerShape(8.dp)).border(1.dp, if(selectedIcon == icon) GreenPrimary else Color.Transparent, RoundedCornerShape(8.dp)).clickable { selectedIcon = icon }, contentAlignment = Alignment.Center) {
+                            Icon(icon, null, tint = if(selectedIcon == icon) GreenPrimary else TextGray, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Colores
+                Text("Color", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyVerticalGrid(columns = GridCells.Fixed(5), verticalArrangement = Arrangement.spacedBy(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.height(80.dp)) {
+                    items(availableColors) { color ->
+                        Box(modifier = Modifier.size(40.dp).background(color, RoundedCornerShape(8.dp)).clickable { selectedColor = color }.border(2.dp, if(selectedColor == color) TextDark else Color.Transparent, RoundedCornerShape(8.dp)))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(onClick = { onSave(catName, selectedIcon, selectedColor) }, enabled = catName.isNotEmpty(), modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(25.dp), colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)) {
+                    Text("Crear", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             }
         }
     }
@@ -307,7 +380,7 @@ fun SelectableCardItem(card: PaymentCard, isSelected: Boolean, onClick: () -> Un
 }
 
 @Composable
-fun ModalLabel(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
+fun ModalLabel(text: String, icon: ImageVector? = null) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
         if (icon != null) { Icon(icon, null, tint = GreenPrimary, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(6.dp)) }
         Text(text, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
@@ -322,20 +395,15 @@ fun ModalInput(value: String, onValueChange: (String) -> Unit, placeholder: Stri
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun BigCategoryItem(data: SubCategoryData, isSelected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+fun BigCategoryItem(data: SubCategoryData, isSelected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .aspectRatio(1f)
             .border(width = if (isSelected) 2.dp else 1.dp, color = if (isSelected) GreenPrimary else InputBackground, shape = RoundedCornerShape(16.dp))
             .background(if (isSelected) GreenPrimary.copy(alpha = 0.05f) else White, RoundedCornerShape(16.dp))
             .clip(RoundedCornerShape(16.dp))
-            // Corrección: combinedClickable ahora está bien importado y usado
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
