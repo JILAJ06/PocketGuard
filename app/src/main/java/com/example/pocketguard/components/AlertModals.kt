@@ -1,5 +1,10 @@
 package com.example.pocketguard.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,7 +47,8 @@ data class PaymentCard(val id: String, val name: String, val last4: String, val 
 @Composable
 fun AlertSettingsModal(
     onDismiss: () -> Unit,
-    onSavePreferences: (Int) -> Unit = {}
+    // Actualizamos el callback para devolver TODOS los valores
+    onSavePreferences: (Boolean, Boolean, Boolean, Boolean, Int) -> Unit = { _, _, _, _, _ -> }
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -54,6 +60,9 @@ fun AlertSettingsModal(
     var budgetAlerts by remember { mutableStateOf(true) }
 
     var daysBefore by remember { mutableStateOf(3f) }
+
+    // Estado para controlar la visibilidad del botón Guardar
+    var showSaveButton by remember { mutableStateOf(false) }
 
     // COLORES TEMÁTICOS
     val notifColor = Color(0xFF4A90E2) // Azul
@@ -105,18 +114,30 @@ fun AlertSettingsModal(
                 // 1. Notificaciones
                 SectionHeader("Canales de Notificación", Icons.Outlined.Notifications)
                 Spacer(modifier = Modifier.height(8.dp))
-                SettingsCard("Email", "usuario@ejemplo.com", Icons.Outlined.Email, notifColor, true, emailEnabled) { emailEnabled = it }
+                SettingsCard("Email", "usuario@ejemplo.com", Icons.Outlined.Email, notifColor, true, emailEnabled) {
+                    emailEnabled = it
+                    showSaveButton = true
+                }
                 Spacer(modifier = Modifier.height(12.dp))
-                SettingsCard("Push", "Notificaciones móviles", Icons.Outlined.Smartphone, notifColor, true, pushEnabled) { pushEnabled = it }
+                SettingsCard("Push", "Notificaciones móviles", Icons.Outlined.Smartphone, notifColor, true, pushEnabled) {
+                    pushEnabled = it
+                    showSaveButton = true
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // 2. Tipos de Alerta
                 SectionHeader("Tipos de Alertas", Icons.Outlined.Bolt)
                 Spacer(modifier = Modifier.height(8.dp))
-                SettingsCard("Suscripciones", "Próximos cargos", Icons.Outlined.CreditCard, alertTypeColor, true, subAlerts) { subAlerts = it }
+                SettingsCard("Suscripciones", "Próximos cargos", Icons.Outlined.CreditCard, alertTypeColor, true, subAlerts) {
+                    subAlerts = it
+                    showSaveButton = true
+                }
                 Spacer(modifier = Modifier.height(12.dp))
-                SettingsCard("Presupuesto", "Límites de gasto", Icons.Outlined.AttachMoney, alertTypeColor, true, budgetAlerts) { budgetAlerts = it }
+                SettingsCard("Presupuesto", "Límites de gasto", Icons.Outlined.AttachMoney, alertTypeColor, true, budgetAlerts) {
+                    budgetAlerts = it
+                    showSaveButton = true
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -128,14 +149,40 @@ fun AlertSettingsModal(
                         Text("Avisar con ${daysBefore.toInt()} días de antelación", fontSize = 14.sp, color = TextDark, fontWeight = FontWeight.Bold)
                         Slider(
                             value = daysBefore,
-                            onValueChange = { daysBefore = it },
-                            onValueChangeFinished = {
-                                onSavePreferences(daysBefore.toInt()) // Guardar al soltar el slider
+                            onValueChange = {
+                                daysBefore = it
+                                showSaveButton = true
                             },
                             valueRange = 1f..7f,
                             steps = 5,
                             colors = SliderDefaults.colors(thumbColor = daysColor, activeTrackColor = daysColor, inactiveTrackColor = daysColor.copy(0.2f))
                         )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(30.dp))
+
+                // BOTÓN GUARDAR (Animado)
+                AnimatedVisibility(
+                    visible = showSaveButton,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    Button(
+                        onClick = {
+                            onSavePreferences(emailEnabled, pushEnabled, subAlerts, budgetAlerts, daysBefore.toInt())
+                            showSaveButton = false
+                            onDismiss() // Opcional: Cerrar al guardar
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
+                    ) {
+                        Icon(Icons.Outlined.Check, contentDescription = null, tint = White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Guardar Configuración", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = White)
                     }
                 }
 
