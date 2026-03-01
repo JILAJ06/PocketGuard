@@ -1,5 +1,6 @@
 package com.example.pocketguard.presentation.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -71,6 +72,15 @@ class RegisterViewModel(
         )
     }
 
+    fun onAcceptedTermsChanged(accepted: Boolean) {
+        Log.d("RegisterViewModel", "onAcceptedTermsChanged() - accepted=$accepted")
+        _formState.value = _formState.value.copy(acceptedTerms = accepted)
+        val isFormValid = validateForm()
+        Log.d("RegisterViewModel", "onAcceptedTermsChanged() - isFormValid=$isFormValid, currentState=${_formState.value}")
+        _formState.value = _formState.value.copy(isValid = isFormValid)
+        Log.d("RegisterViewModel", "onAcceptedTermsChanged() - finalState=${_formState.value}")
+    }
+
     fun register() {
         val currentState = _formState.value
 
@@ -94,9 +104,17 @@ class RegisterViewModel(
             confirmPasswordError != ValidationError.NONE ||
             fullNameError != ValidationError.NONE
         ) {
+            Log.w("RegisterViewModel", "register() - Validación de campos fallida")
             return
         }
 
+        if (!currentState.acceptedTerms) {
+            Log.w("RegisterViewModel", "register() - Términos no aceptados")
+            _errorMessage.value = "Debes aceptar los términos y condiciones"
+            return
+        }
+
+        Log.d("RegisterViewModel", "register() - Iniciando proceso de registro...")
         _formState.value = _formState.value.copy(isLoading = true)
 
         viewModelScope.launch {
@@ -109,14 +127,17 @@ class RegisterViewModel(
             result.let { authResult ->
                 when {
                     authResult is com.example.pocketguard.data.models.AuthResult.Success -> {
+                        Log.d("RegisterViewModel", "register() - Registro exitoso!")
                         _isSuccess.value = true
                         _errorMessage.value = ""
                     }
                     authResult is com.example.pocketguard.data.models.AuthResult.Error -> {
+                        Log.e("RegisterViewModel", "register() - Error: ${authResult.message}")
                         _errorMessage.value = authResult.message
                         _isSuccess.value = false
                     }
                     else -> {
+                        Log.e("RegisterViewModel", "register() - Estado desconocido")
                         _isSuccess.value = false
                     }
                 }
@@ -139,7 +160,8 @@ class RegisterViewModel(
         return emailError == ValidationError.NONE &&
                 passwordError == ValidationError.NONE &&
                 confirmPasswordError == ValidationError.NONE &&
-                fullNameError == ValidationError.NONE
+                fullNameError == ValidationError.NONE &&
+                currentState.acceptedTerms
     }
 
     fun getEmailErrorMessage(): String {

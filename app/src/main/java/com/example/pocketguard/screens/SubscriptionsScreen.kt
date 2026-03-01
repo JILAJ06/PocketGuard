@@ -55,8 +55,7 @@ data class SubscriptionUI(
     val categoryName: String,
     val daysLeft: Int,
     val icon: ImageVector,
-    val color: Color,
-    val cardId: String? // Agregamos cardId para poder editar correctamente
+    val color: Color
 )
 
 @Composable
@@ -134,8 +133,7 @@ fun SubscriptionsScreen(
                 categoryName = sub.category_name,
                 daysLeft = sub.days_until_payment,
                 icon = Icons.Default.CreditCard,
-                color = Color(android.graphics.Color.parseColor(sub.category_color)),
-                cardId = sub.card_id
+                color = Color(android.graphics.Color.parseColor(sub.category_color))
             )
         }
     }
@@ -228,13 +226,12 @@ fun SubscriptionsScreen(
             initialPrice = sub.price,
             initialCategory = sub.categoryName,
             initialCycle = sub.cycle,
-            // Convertir YYYY-MM-DD a dd/MM/yyyy para mostrar
             initialDate = try {
                 val input = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
                 val output = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
                 java.time.LocalDate.parse(sub.nextDate, input).format(output)
             } catch (e: Exception) { sub.nextDate },
-            initialCardId = sub.cardId ?: "",
+            initialCardId = "",
 
             cards = cards,
             categories = categories,

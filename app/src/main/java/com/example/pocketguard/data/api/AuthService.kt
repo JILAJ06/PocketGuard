@@ -53,6 +53,13 @@ interface AuthService {
      */
     @POST("auth/logout")
     suspend fun logout(@Header("Authorization") token: String): ApiResponse<Map<String, String>>
+
+    /**
+     * Eliminar cuenta de usuario
+     * DELETE /users/me
+     */
+    @DELETE("users/me")
+    suspend fun deleteAccount(@Header("Authorization") token: String): ApiResponse<Map<String, String>>
 }
 
 // Data classes para requests adicionales
@@ -64,4 +71,3 @@ data class GoogleTokenRequest(
 data class RefreshTokenRequest(
     val refreshToken: String
 )
-

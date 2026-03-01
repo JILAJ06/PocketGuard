@@ -16,6 +16,7 @@ data class RegisterFormState(
     val password: String = "",
     val confirmPassword: String = "",
     val fullName: String = "",
+    val acceptedTerms: Boolean = false,
     val emailError: ValidationError = ValidationError.NONE,
     val passwordError: ValidationError = ValidationError.NONE,
     val confirmPasswordError: ValidationError = ValidationError.NONE,

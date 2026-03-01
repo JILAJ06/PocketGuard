@@ -53,6 +53,7 @@ data class AlertItemUI(
 
 @Composable
 fun AlertsScreen(
+    modifier: Modifier = Modifier,
     onAuthExpired: () -> Unit = {}
 ) {
     val cardsViewModel: CardsViewModel = viewModel(
@@ -61,17 +62,23 @@ fun AlertsScreen(
     val banksViewModel: BanksViewModel = viewModel(
         factory = ServiceLocator.getBanksViewModelFactory()
     )
+    val notificationsViewModel: com.example.pocketguard.presentation.viewmodel.NotificationsViewModel = viewModel(
+        factory = ServiceLocator.getNotificationsViewModelFactory()
+    )
 
     val cardsState by cardsViewModel.state.collectAsStateWithLifecycle()
     val banksState by banksViewModel.state.collectAsStateWithLifecycle()
+    val notificationsState by notificationsViewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         cardsViewModel.loadCards()
         banksViewModel.loadBanks()
+        notificationsViewModel.loadNotificationSettings()
+        notificationsViewModel.loadNotifications()
     }
 
-    LaunchedEffect(cardsState.isUnauthorized || banksState.isUnauthorized) {
-        if (cardsState.isUnauthorized || banksState.isUnauthorized) {
+    LaunchedEffect(cardsState.isUnauthorized || banksState.isUnauthorized || notificationsState.isUnauthorized) {
+        if (cardsState.isUnauthorized || banksState.isUnauthorized || notificationsState.isUnauthorized) {
             onAuthExpired()
         }
     }
@@ -91,27 +98,39 @@ fun AlertsScreen(
 
     var showSettingsModal by remember { mutableStateOf(false) }
 
-    // Estado de Filtro
-    var selectedFilter by remember { mutableStateOf("Todas") } // "Todas", "Sin leer", "Suscripciones"
+    var selectedFilter by remember { mutableStateOf("Todas") }
 
-    // --- LISTA MUTABLE DE ALERTAS (Estado) ---
-    // Usamos mutableStateListOf para que la UI reaccione a los cambios (marcar como leído)
-    val alerts = remember {
-        mutableStateListOf(
-            AlertItemUI("1", "Próximo cargo: Netflix", "Tu suscripción de Netflix ($199) se cargará en 4 días.", "02-06 • 08:00", Icons.Outlined.Info, AlertCategory.SUBSCRIPTION, isRead = false),
-            AlertItemUI("2", "Próximo cargo: Spotify", "Tu suscripción de Spotify ($115) se cargará en 6 días.", "02-06 • 08:00", Icons.Outlined.Info, AlertCategory.SUBSCRIPTION, isRead = false),
-            AlertItemUI("3", "Límite alcanzado", "Has gastado $3,600 este mes, el 90% de tu presupuesto.", "02-06 • 07:30", Icons.Outlined.Warning, AlertCategory.BUDGET, isRead = true, isHighPriority = true),
-            AlertItemUI("4", "Gasto hormiga detectado", "Has realizado 15 compras menores a $100 por $1,240.", "02-05 • 18:00", Icons.Outlined.ErrorOutline, AlertCategory.BUDGET, isRead = false, isHighPriority = true),
-            AlertItemUI("5", "Oportunidad de ahorro", "Podrías ahorrar $3,600 al año cancelando 2 suscripciones.", "02-05 • 12:00", Icons.Outlined.Lightbulb, AlertCategory.GENERAL, isRead = true)
-        )
+    val alerts = remember(notificationsState.notifications) {
+        notificationsState.notifications.map { notification ->
+            val icon = when (notification.type) {
+                "upcoming_charge" -> Icons.Outlined.Info
+                "budget_limit" -> Icons.Outlined.Warning
+                "ant_expense" -> Icons.Outlined.ErrorOutline
+                else -> Icons.Outlined.Notifications
+            }
+            val category = when (notification.type) {
+                "upcoming_charge" -> AlertCategory.SUBSCRIPTION
+                "budget_limit" -> AlertCategory.BUDGET
+                "ant_expense" -> AlertCategory.BUDGET
+                else -> AlertCategory.GENERAL
+            }
+            AlertItemUI(
+                id = notification.id,
+                title = notification.title,
+                description = notification.message,
+                time = notification.createdAt.substring(0, 10),
+                icon = icon,
+                category = category,
+                isRead = notification.isRead,
+                isHighPriority = notification.priority == "high"
+            )
+        }
     }
 
-    // --- CÁLCULOS DINÁMICOS ---
     val unreadCount = alerts.count { !it.isRead }
     val highPriorityCount = alerts.count { it.isHighPriority }
     val subscriptionCount = alerts.count { it.category == AlertCategory.SUBSCRIPTION }
 
-    // --- LÓGICA DE FILTRADO ---
     val filteredAlerts = when (selectedFilter) {
         "Sin leer" -> alerts.filter { !it.isRead }
         "Suscripciones" -> alerts.filter { it.category == AlertCategory.SUBSCRIPTION }
@@ -203,23 +222,6 @@ fun AlertsScreen(
                     item { FilterChip(text = "Sin leer", isSelected = selectedFilter == "Sin leer", onClick = { selectedFilter = "Sin leer" }) }
                     item { FilterChip(text = "Suscripciones", isSelected = selectedFilter == "Suscripciones", onClick = { selectedFilter = "Suscripciones" }) }
                 }
-
-                // Botón "Marcar todo como leído" (Solo si hay no leídos)
-                if (unreadCount > 0) {
-                    TextButton(
-                        onClick = {
-                            // Actualizamos todas las alertas a isRead = true
-                            for (i in alerts.indices) {
-                                alerts[i] = alerts[i].copy(isRead = true)
-                            }
-                        },
-                        contentPadding = PaddingValues(horizontal = 8.dp)
-                    ) {
-                        Icon(Icons.Default.DoneAll, null, modifier = Modifier.size(16.dp), tint = GreenPrimary)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Marcar leídos", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GreenPrimary)
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -238,10 +240,8 @@ fun AlertsScreen(
                         AlertItemCard(
                             alert = alert,
                             onClick = {
-                                // Al hacer clic, marcar individualmente como leída
-                                val index = alerts.indexOfFirst { it.id == alert.id }
-                                if (index != -1) {
-                                    alerts[index] = alerts[index].copy(isRead = true)
+                                if (!alert.isRead) {
+                                    notificationsViewModel.markAsRead(alert.id)
                                 }
                             }
                         )
@@ -281,9 +281,14 @@ fun AlertsScreen(
     if (showSettingsModal) {
         AlertSettingsModal(
             onDismiss = { showSettingsModal = false },
-            onSavePreferences = { days ->
-                // TODO: Guardar días de anticipación en preferencias
-                // Aquí puedes usar NotificationsViewModel o crear un endpoint específico
+            onSavePreferences = { emailEnabled, pushEnabled, subAlerts, budgetAlerts, days ->
+                notificationsViewModel.updateNotificationSettings(
+                    emailEnabled = emailEnabled,
+                    pushEnabled = pushEnabled,
+                    subscriptionReminders = subAlerts,
+                    daysBeforeNotice = days
+                )
+                showSettingsModal = false
             }
         )
     }

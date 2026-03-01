@@ -14,11 +14,14 @@ class AuthInterceptor(private val context: Context) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
+        val url = originalRequest.url.encodedPath
 
-        // Obtener el token de las preferencias compartidas
+        if (url.contains("/auth/login") || url.contains("/auth/register")) {
+            return chain.proceed(originalRequest)
+        }
+
         val token = getAccessToken()
 
-        // Si existe un token, agregarlo al header Authorization
         val requestWithToken = if (token.isNotEmpty()) {
             originalRequest.newBuilder()
                 .header("Authorization", "Bearer $token")

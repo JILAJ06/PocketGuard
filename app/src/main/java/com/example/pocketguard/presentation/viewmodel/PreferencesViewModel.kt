@@ -45,9 +45,13 @@ class PreferencesViewModel(private val repository: PreferencesRepository) : View
 
     fun updatePreferences(theme: String? = null, language: String? = null) {
         viewModelScope.launch {
-            Log.d("PreferencesViewModel", "updatePreferences() - theme=$theme, language=$language")
+            val currentPrefs = _state.value.preferences
+            val finalTheme = theme ?: currentPrefs?.theme
+            val finalLanguage = language ?: currentPrefs?.language
+
+            Log.d("PreferencesViewModel", "updatePreferences() - theme=$finalTheme, language=$finalLanguage")
             _state.value = _state.value.copy(isLoading = true, errorMessage = "", isUnauthorized = false)
-            val request = UpdatePreferenceRequest(theme = theme, language = language)
+            val request = UpdatePreferenceRequest(theme = finalTheme, language = finalLanguage)
             Log.d("PreferencesViewModel", "updatePreferences() - Request: $request")
             repository.updatePreferences(request).onSuccess { preferences ->
                 Log.d("PreferencesViewModel", "updatePreferences() - Éxito: $preferences")

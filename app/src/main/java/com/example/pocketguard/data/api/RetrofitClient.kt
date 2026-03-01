@@ -96,6 +96,7 @@ object RetrofitClient {
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor(AuthInterceptor(context))
             .addInterceptor(TokenRefreshInterceptor(context, tokenManager!!))
             .addInterceptor(okhttp3.logging.HttpLoggingInterceptor().apply {
                 level = okhttp3.logging.HttpLoggingInterceptor.Level.BODY
@@ -106,7 +107,6 @@ object RetrofitClient {
 
     private fun createGson() = GsonBuilder()
         .setLenient()
-        .serializeNulls()
         .create()
 
     fun resetInstances() {

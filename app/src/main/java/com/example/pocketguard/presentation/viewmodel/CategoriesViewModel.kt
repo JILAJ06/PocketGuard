@@ -1,5 +1,6 @@
 package com.example.pocketguard.presentation.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 
 data class CategoriesState(
     val categories: List<Category> = emptyList(),
+    val userCategories: List<Category> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String = "",
     val isUnauthorized: Boolean = false
@@ -26,10 +28,19 @@ class CategoriesViewModel(private val repository: CategoriesRepository) : ViewMo
 
     fun loadCategories() {
         viewModelScope.launch {
+            Log.d("CategoriesViewModel", "loadCategories() - Iniciando carga...")
             _state.value = _state.value.copy(isLoading = true, errorMessage = "", isUnauthorized = false)
             repository.getAllCategories().onSuccess { categories ->
-                _state.value = _state.value.copy(categories = categories, isLoading = false)
+                Log.d("CategoriesViewModel", "loadCategories() - ${categories.size} categorías totales")
+                val userCategories = categories.filter { it.user_id != null }
+                Log.d("CategoriesViewModel", "loadCategories() - ${userCategories.size} categorías personalizadas")
+                _state.value = _state.value.copy(
+                    categories = categories,
+                    userCategories = userCategories,
+                    isLoading = false
+                )
             }.onFailure { error ->
+                Log.e("CategoriesViewModel", "loadCategories() - Error: ${error.message}")
                 val unauthorized = error is AuthenticationException
                 _state.value = _state.value.copy(
                     isLoading = false,
@@ -42,14 +53,20 @@ class CategoriesViewModel(private val repository: CategoriesRepository) : ViewMo
 
     fun createCategory(name: String, iconUrl: String?, colorHex: String?) {
         viewModelScope.launch {
+            Log.d("CategoriesViewModel", "createCategory() - Nombre: $name")
             _state.value = _state.value.copy(isLoading = true, errorMessage = "", isUnauthorized = false)
             val request = CreateCategoryRequest(name = name, icon_url = iconUrl, color_hex = colorHex)
             repository.createCategory(request).onSuccess { category ->
+                Log.d("CategoriesViewModel", "createCategory() - Categoría creada: ${category.id}")
+                val updatedCategories = _state.value.categories + category
+                val updatedUserCategories = updatedCategories.filter { it.user_id != null }
                 _state.value = _state.value.copy(
-                    categories = _state.value.categories + category,
+                    categories = updatedCategories,
+                    userCategories = updatedUserCategories,
                     isLoading = false
                 )
             }.onFailure { error ->
+                Log.e("CategoriesViewModel", "createCategory() - Error: ${error.message}")
                 val unauthorized = error is AuthenticationException
                 _state.value = _state.value.copy(
                     isLoading = false,
@@ -62,14 +79,20 @@ class CategoriesViewModel(private val repository: CategoriesRepository) : ViewMo
 
     fun updateCategory(id: String, name: String?, iconUrl: String?, colorHex: String?) {
         viewModelScope.launch {
+            Log.d("CategoriesViewModel", "updateCategory() - ID: $id")
             _state.value = _state.value.copy(isLoading = true, errorMessage = "", isUnauthorized = false)
             val request = UpdateCategoryRequest(name = name, icon_url = iconUrl, color_hex = colorHex)
             repository.updateCategory(id, request).onSuccess { category ->
+                Log.d("CategoriesViewModel", "updateCategory() - Categoría actualizada")
+                val updatedCategories = _state.value.categories.map { if (it.id == id) category else it }
+                val updatedUserCategories = updatedCategories.filter { it.user_id != null }
                 _state.value = _state.value.copy(
-                    categories = _state.value.categories.map { if (it.id == id) category else it },
+                    categories = updatedCategories,
+                    userCategories = updatedUserCategories,
                     isLoading = false
                 )
             }.onFailure { error ->
+                Log.e("CategoriesViewModel", "updateCategory() - Error: ${error.message}")
                 val unauthorized = error is AuthenticationException
                 _state.value = _state.value.copy(
                     isLoading = false,
@@ -82,9 +105,17 @@ class CategoriesViewModel(private val repository: CategoriesRepository) : ViewMo
 
     fun deleteCategory(id: String) {
         viewModelScope.launch {
+            Log.d("CategoriesViewModel", "deleteCategory() - ID: $id")
             repository.deleteCategory(id).onSuccess {
-                _state.value = _state.value.copy(categories = _state.value.categories.filter { it.id != id })
+                Log.d("CategoriesViewModel", "deleteCategory() - Categoría eliminada")
+                val updatedCategories = _state.value.categories.filter { it.id != id }
+                val updatedUserCategories = updatedCategories.filter { it.user_id != null }
+                _state.value = _state.value.copy(
+                    categories = updatedCategories,
+                    userCategories = updatedUserCategories
+                )
             }.onFailure { error ->
+                Log.e("CategoriesViewModel", "deleteCategory() - Error: ${error.message}")
                 val unauthorized = error is AuthenticationException
                 _state.value = _state.value.copy(
                     errorMessage = if (unauthorized) "" else (error.message ?: "Error al eliminar categoría"),

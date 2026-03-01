@@ -56,16 +56,18 @@ class TokenManager(context: Context) {
         return sharedPreferences.getString(ApiConstants.USER_ID_KEY, null)
     }
 
-    /**
-     * Verificar si el usuario está autenticado (tiene token)
-     */
-    fun isAuthenticated(): Boolean {
+    fun hasToken(): Boolean {
         return getAccessToken() != null && getAccessToken()!!.isNotEmpty()
     }
 
-    /**
-     * Limpiar todos los datos de autenticación (logout)
-     */
+    fun isAuthenticated(): Boolean {
+        return hasToken()
+    }
+
+    fun clear() {
+        clearAuthData()
+    }
+
     fun clearAuthData() {
         sharedPreferences.edit().apply {
             remove(ApiConstants.ACCESS_TOKEN_KEY)

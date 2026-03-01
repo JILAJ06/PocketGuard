@@ -1,5 +1,6 @@
 package com.example.pocketguard.presentation.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -28,13 +29,16 @@ class ExpensesViewModel(private val repository: ExpensesRepository) : ViewModel(
 
     fun loadExpenses() {
         viewModelScope.launch {
+            Log.d("ExpensesViewModel", "loadExpenses() - Iniciando carga...")
             _state.value = _state.value.copy(isLoading = true, errorMessage = "", isUnauthorized = false)
             repository.getAllExpenses().onSuccess { expenses ->
+                Log.d("ExpensesViewModel", "loadExpenses() - ${expenses.size} gastos")
                 _state.value = _state.value.copy(
                     expenses = expenses,
                     isLoading = false
                 )
             }.onFailure { error ->
+                Log.e("ExpensesViewModel", "loadExpenses() - Error: ${error.message}")
                 val unauthorized = error is com.example.pocketguard.data.exceptions.AuthenticationException
                 _state.value = _state.value.copy(
                     isLoading = false,
@@ -47,11 +51,13 @@ class ExpensesViewModel(private val repository: ExpensesRepository) : ViewModel(
 
     fun deleteExpense(id: String) {
         viewModelScope.launch {
+            Log.d("ExpensesViewModel", "deleteExpense() - ID: $id")
             repository.deleteExpense(id).onSuccess {
                 _state.value = _state.value.copy(
                     expenses = _state.value.expenses.filter { it.id != id }
                 )
             }.onFailure { error ->
+                Log.e("ExpensesViewModel", "deleteExpense() - Error: ${error.message}")
                 val unauthorized = error is com.example.pocketguard.data.exceptions.AuthenticationException
                 _state.value = _state.value.copy(
                     errorMessage = if (unauthorized) "" else (error.message ?: "Error al eliminar gasto"),
@@ -67,6 +73,7 @@ class ExpensesViewModel(private val repository: ExpensesRepository) : ViewModel(
 
     fun createExpense(name: String, amount: Double, expenseDate: String, categoryId: String) {
         viewModelScope.launch {
+            Log.d("ExpensesViewModel", "createExpense() - Nombre: $name, Monto: $amount")
             _state.value = _state.value.copy(isLoading = true, errorMessage = "", isUnauthorized = false)
             val request = com.example.pocketguard.data.models.CreateExpenseRequest(
                 name = name,
@@ -80,6 +87,7 @@ class ExpensesViewModel(private val repository: ExpensesRepository) : ViewModel(
                     isLoading = false
                 )
             }.onFailure { error ->
+                Log.e("ExpensesViewModel", "createExpense() - Error: ${error.message}")
                 val unauthorized = error is com.example.pocketguard.data.exceptions.AuthenticationException
                 _state.value = _state.value.copy(
                     isLoading = false,

@@ -162,8 +162,8 @@ fun SignUpScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Checkbox(
-                checked = true,
-                onCheckedChange = { },
+                checked = formState.acceptedTerms,
+                onCheckedChange = { viewModel.onAcceptedTermsChanged(it) },
                 colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary),
                 enabled = !formState.isLoading
             )
@@ -171,7 +171,9 @@ fun SignUpScreen(
                 text = "Acepto el Aviso de Privacidad y Términos.",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.clickable(enabled = !formState.isLoading) { }
+                modifier = Modifier.clickable(enabled = !formState.isLoading) {
+                    viewModel.onAcceptedTermsChanged(!formState.acceptedTerms)
+                }
             )
         }
 

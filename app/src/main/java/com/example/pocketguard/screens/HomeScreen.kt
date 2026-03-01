@@ -96,21 +96,6 @@ fun HomeHeaderSection(onNavigateToSettings: () -> Unit = {}) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Botón de configuración
-                    IconButton(
-                        onClick = onNavigateToSettings,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(White.copy(alpha = 0.2f))
-                    ) {
-                        Icon(
-                            Icons.Outlined.Settings,
-                            contentDescription = "Configuración",
-                            tint = White
-                        )
-                    }
-
                     // Avatar
                     Box(
                         modifier = Modifier.size(40.dp).clip(CircleShape).background(White.copy(alpha = 0.2f)),

@@ -1,5 +1,6 @@
 package com.example.pocketguard.presentation.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -70,9 +71,12 @@ class AddSubscriptionViewModel(private val repository: SubscriptionsRepository) 
         nextPaymentDate: String,
         billingCycleId: Int,
         categoryId: String,
-        cardId: String?
+        cardId: String?,
+        cards: List<com.example.pocketguard.data.models.Card> = emptyList()
     ) {
         viewModelScope.launch {
+            val finalCardId = cardId ?: cards.firstOrNull { it.is_default }?.card_id
+            Log.d("AddSubscriptionViewModel", "createSubscription() - Servicio: $serviceName, CardId original: $cardId, CardId final: $finalCardId")
             _state.value = _state.value.copy(isLoading = true, errorMessage = "", isUnauthorized = false)
             val request = CreateSubscriptionRequest(
                 service_name = serviceName,
@@ -80,15 +84,17 @@ class AddSubscriptionViewModel(private val repository: SubscriptionsRepository) 
                 next_payment_date = nextPaymentDate,
                 billing_cycle_id = billingCycleId,
                 category_id = categoryId,
-                used_card_id = cardId
+                used_card_id = finalCardId
             )
             repository.createSubscription(request).onSuccess { subscription ->
+                Log.d("AddSubscriptionViewModel", "createSubscription() - Suscripción creada exitosamente")
                 _state.value = _state.value.copy(
                     subscription = subscription,
                     isLoading = false,
                     isSuccess = true
                 )
             }.onFailure { error ->
+                Log.e("AddSubscriptionViewModel", "createSubscription() - Error: ${error.message}")
                 val unauthorized = error is com.example.pocketguard.data.exceptions.AuthenticationException
                 _state.value = _state.value.copy(
                     isLoading = false,
@@ -106,9 +112,16 @@ class AddSubscriptionViewModel(private val repository: SubscriptionsRepository) 
         nextPaymentDate: String?,
         billingCycleId: Int?,
         categoryId: String?,
-        cardId: String?
+        cardId: String?,
+        keepCurrentCard: Boolean = false
     ) {
         viewModelScope.launch {
+            val finalCardId: String? = if (keepCurrentCard) {
+                null
+            } else {
+                cardId
+            }
+            Log.d("AddSubscriptionViewModel", "updateSubscription() - ID: $id, CardId: $finalCardId, keepCurrent: $keepCurrentCard")
             _state.value = _state.value.copy(isLoading = true, errorMessage = "", isUnauthorized = false)
             val request = UpdateSubscriptionRequest(
                 service_name = serviceName,
@@ -116,7 +129,7 @@ class AddSubscriptionViewModel(private val repository: SubscriptionsRepository) 
                 next_payment_date = nextPaymentDate,
                 billing_cycle_id = billingCycleId,
                 category_id = categoryId,
-                used_card_id = cardId
+                used_card_id = finalCardId
             )
             repository.updateSubscription(id, request).onSuccess { subscription ->
                 _state.value = _state.value.copy(
@@ -125,6 +138,7 @@ class AddSubscriptionViewModel(private val repository: SubscriptionsRepository) 
                     isSuccess = true
                 )
             }.onFailure { error ->
+                Log.e("AddSubscriptionViewModel", "updateSubscription() - Error: ${error.message}")
                 val unauthorized = error is com.example.pocketguard.data.exceptions.AuthenticationException
                 _state.value = _state.value.copy(
                     isLoading = false,

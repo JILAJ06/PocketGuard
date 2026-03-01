@@ -1,5 +1,6 @@
 package com.example.pocketguard.presentation.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -53,9 +54,11 @@ class LoginViewModel(
         )
 
         if (emailError != ValidationError.NONE || passwordError != ValidationError.NONE) {
+            Log.w("LoginViewModel", "login() - Validación fallida")
             return
         }
 
+        Log.d("LoginViewModel", "login() - Iniciando proceso de login...")
         _formState.value = _formState.value.copy(isLoading = true)
 
         viewModelScope.launch {
@@ -63,14 +66,17 @@ class LoginViewModel(
             result.let { authResult ->
                 when {
                     authResult is com.example.pocketguard.data.models.AuthResult.Success -> {
+                        Log.d("LoginViewModel", "login() - Login exitoso!")
                         _isSuccess.value = true
                         _errorMessage.value = ""
                     }
                     authResult is com.example.pocketguard.data.models.AuthResult.Error -> {
+                        Log.e("LoginViewModel", "login() - Error: ${authResult.message}")
                         _errorMessage.value = authResult.message
                         _isSuccess.value = false
                     }
                     else -> {
+                        Log.e("LoginViewModel", "login() - Estado desconocido")
                         _isSuccess.value = false
                     }
                 }

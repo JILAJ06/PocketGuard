@@ -1,5 +1,22 @@
 package com.example.pocketguard.data.models
 
+data class Notification(
+    val id: String,
+    val userId: String,
+    val type: String,
+    val priority: String,
+    val title: String,
+    val message: String,
+    val isRead: Boolean,
+    val subscriptionId: String?,
+    val metadata: Map<String, Any>?,
+    val createdAt: String
+)
+
+data class NotificationData(
+    val notifications: List<Notification>
+)
+
 data class NotificationSettings(
     val email_enabled: Boolean,
     val push_enabled: Boolean,

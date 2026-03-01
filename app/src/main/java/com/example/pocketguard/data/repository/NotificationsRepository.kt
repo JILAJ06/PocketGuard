@@ -1,9 +1,11 @@
 package com.example.pocketguard.data.repository
 
 import android.content.Context
+import android.util.Log
 import com.example.pocketguard.data.api.NotificationsService
 import com.example.pocketguard.data.api.RetrofitClient
 import com.example.pocketguard.data.exceptions.AuthenticationException
+import com.example.pocketguard.data.models.Notification
 import com.example.pocketguard.data.models.NotificationSettings
 import com.example.pocketguard.data.models.UpdateNotificationSettingsRequest
 import com.example.pocketguard.data.storage.TokenManager
@@ -19,28 +21,69 @@ class NotificationsRepository(private val context: Context) {
         return "Bearer $token"
     }
 
-    suspend fun getNotificationSettings(): Result<NotificationSettings> = try {
-        val response = notificationsService.getNotificationSettings(getAuthHeader())
+    suspend fun getNotifications(): Result<List<Notification>> = try {
+        Log.d("NotificationsRepository", "getNotifications() - Obteniendo notificaciones...")
+        val response = notificationsService.getNotifications(getAuthHeader())
+        Log.d("NotificationsRepository", "getNotifications() - Response: success=${response.success}")
         if (response.success && response.data != null) {
-            Result.success(response.data!!)
+            Log.d("NotificationsRepository", "getNotifications() - ${response.data.notifications.size} notificaciones obtenidas")
+            Result.success(response.data.notifications)
         } else {
+            Log.e("NotificationsRepository", "getNotifications() - Error: ${response.message}")
             Result.failure(Exception(response.message))
         }
     } catch (e: Exception) {
+        Log.e("NotificationsRepository", "getNotifications() - Exception: ${e.message}", e)
+        val mapped = if (e is HttpException && e.code() == 401) AuthenticationException() else e
+        Result.failure(mapped)
+    }
+
+    suspend fun markAsRead(notificationId: String): Result<Boolean> = try {
+        Log.d("NotificationsRepository", "markAsRead() - Marcando notificación $notificationId...")
+        val response = notificationsService.markAsRead(notificationId, getAuthHeader())
+        if (response.success) {
+            Log.d("NotificationsRepository", "markAsRead() - Notificación marcada como leída")
+            Result.success(true)
+        } else {
+            Log.e("NotificationsRepository", "markAsRead() - Error: ${response.message}")
+            Result.failure(Exception(response.message))
+        }
+    } catch (e: Exception) {
+        Log.e("NotificationsRepository", "markAsRead() - Exception: ${e.message}", e)
+        val mapped = if (e is HttpException && e.code() == 401) AuthenticationException() else e
+        Result.failure(mapped)
+    }
+
+    suspend fun getNotificationSettings(): Result<NotificationSettings> = try {
+        Log.d("NotificationsRepository", "getNotificationSettings() - Obteniendo configuración...")
+        val response = notificationsService.getNotificationSettings(getAuthHeader())
+        Log.d("NotificationsRepository", "getNotificationSettings() - Response: success=${response.success}")
+        if (response.success && response.data != null) {
+            Log.d("NotificationsRepository", "getNotificationSettings() - Configuración obtenida")
+            Result.success(response.data)
+        } else {
+            Log.e("NotificationsRepository", "getNotificationSettings() - Error: ${response.message}")
+            Result.failure(Exception(response.message))
+        }
+    } catch (e: Exception) {
+        Log.e("NotificationsRepository", "getNotificationSettings() - Exception: ${e.message}", e)
         val mapped = if (e is HttpException && e.code() == 401) AuthenticationException() else e
         Result.failure(mapped)
     }
 
     suspend fun updateNotificationSettings(request: UpdateNotificationSettingsRequest): Result<NotificationSettings> = try {
+        Log.d("NotificationsRepository", "updateNotificationSettings() - Actualizando...")
         val response = notificationsService.updateNotificationSettings(request, getAuthHeader())
         if (response.success && response.data != null) {
-            Result.success(response.data!!)
+            Log.d("NotificationsRepository", "updateNotificationSettings() - Configuración actualizada")
+            Result.success(response.data)
         } else {
+            Log.e("NotificationsRepository", "updateNotificationSettings() - Error: ${response.message}")
             Result.failure(Exception(response.message))
         }
     } catch (e: Exception) {
+        Log.e("NotificationsRepository", "updateNotificationSettings() - Exception: ${e.message}", e)
         val mapped = if (e is HttpException && e.code() == 401) AuthenticationException() else e
         Result.failure(mapped)
     }
 }
-

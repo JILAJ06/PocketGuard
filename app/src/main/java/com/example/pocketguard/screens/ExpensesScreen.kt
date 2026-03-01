@@ -54,6 +54,7 @@ data class ChartPoint(val day: String, val value: Float, val displayAmount: Stri
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpensesScreen(
+    modifier: Modifier = Modifier,
     onAuthExpired: () -> Unit = {}
 ) {
     val viewModel: ExpensesViewModel = viewModel(

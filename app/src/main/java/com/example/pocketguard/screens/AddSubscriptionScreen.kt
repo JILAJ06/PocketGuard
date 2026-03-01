@@ -48,12 +48,17 @@ fun AddSubscriptionScreen(
     val categoriesViewModel: CategoriesViewModel = viewModel(
         factory = ServiceLocator.getCategoriesViewModelFactory()
     )
+    val cardsViewModel: com.example.pocketguard.presentation.viewmodel.CardsViewModel = viewModel(
+        factory = ServiceLocator.getCardsViewModelFactory()
+    )
 
     val state by viewModel.state.collectAsStateWithLifecycle()
     val categoriesState by categoriesViewModel.state.collectAsStateWithLifecycle()
+    val cardsState by cardsViewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         categoriesViewModel.loadCategories()
+        cardsViewModel.loadCards()
     }
 
     LaunchedEffect(state.isUnauthorized || categoriesState.isUnauthorized) {
@@ -244,7 +249,8 @@ fun AddSubscriptionScreen(
                             nextPaymentDate = dateDisplay,
                             billingCycleId = billingCycleId,
                             categoryId = categoryId,
-                            cardId = null
+                            cardId = null,
+                            keepCurrentCard = true
                         )
                     } else {
                         viewModel.createSubscription(
@@ -253,7 +259,8 @@ fun AddSubscriptionScreen(
                             nextPaymentDate = dateDisplay,
                             billingCycleId = billingCycleId,
                             categoryId = categoryId,
-                            cardId = null
+                            cardId = null,
+                            cards = cardsState.cards
                         )
                     }
                 },

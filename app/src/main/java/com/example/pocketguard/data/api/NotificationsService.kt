@@ -5,6 +5,15 @@ import retrofit2.http.*
 
 interface NotificationsService {
 
+    @GET("notifications")
+    suspend fun getNotifications(@Header("Authorization") token: String): ApiResponse<NotificationData>
+
+    @PATCH("notifications/{id}/read")
+    suspend fun markAsRead(
+        @Path("id") id: String,
+        @Header("Authorization") token: String
+    ): ApiResponse<Map<String, String>>
+
     @GET("notifications/settings")
     suspend fun getNotificationSettings(@Header("Authorization") token: String): ApiResponse<NotificationSettings>
 
