@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -75,17 +76,17 @@ fun SettingsScreen(
     val banksState by banksViewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // --- Estados Locales para Nuevas Funcionalidades ---
+    // --- Estados Locales ---
     var monthlyIncome by remember { mutableStateOf("15000") } // Estado para Ingresos
     var showSaveButton by remember { mutableStateOf(false) } // Controla visibilidad del botón guardar
 
-    // Lista de Categorías (Mock Inicial + Estado Dinámico)
+    // Lista de Categorías
     val categoriesList = remember {
         mutableStateListOf(
             SettingsCategory(name = "Alimentos", icon = Icons.Outlined.Fastfood, color = Color(0xFFF1C40F), isDefault = true),
             SettingsCategory(name = "Transporte", icon = Icons.Outlined.DirectionsCar, color = Color(0xFF2ECC71), isDefault = true),
             SettingsCategory(name = "Hogar", icon = Icons.Outlined.Home, color = Color(0xFF3498DB), isDefault = true),
-            SettingsCategory(name = "Personal", icon = Icons.Outlined.Person, color = Color(0xFF9B59B6), isDefault = false) // Ejemplo de creada por usuario
+            SettingsCategory(name = "Personal", icon = Icons.Outlined.Person, color = Color(0xFF9B59B6), isDefault = false)
         )
     }
 
@@ -95,7 +96,7 @@ fun SettingsScreen(
     var newCatIcon by remember { mutableStateOf(Icons.Outlined.LocalCafe) }
     var newCatColor by remember { mutableStateOf(Color(0xFF03A9F4)) }
 
-    // --- Lógica de Carga (Existente) ---
+    // --- Lógica de Carga ---
     LaunchedEffect(Unit) {
         preferencesViewModel.loadPreferences()
         cardsViewModel.loadCards()
@@ -121,7 +122,7 @@ fun SettingsScreen(
         }
     }
 
-    // --- Manejo de Cards (Existente) ---
+    // --- Manejo de Cards ---
     val cards = remember(cardsState.cards) {
         cardsState.cards.map { card ->
             PaymentCard(
@@ -160,18 +161,15 @@ fun SettingsScreen(
             )
         },
         floatingActionButton = {
-            // NUEVO: Botón Flotante para Guardar Cambios Generales
             AnimatedVisibility(
-                visible = showSaveButton || monthlyIncome != "15000", // Aparece si hay cambios (simulado)
+                visible = showSaveButton || monthlyIncome != "15000",
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
                 ExtendedFloatingActionButton(
                     onClick = {
-                        // Aquí iría la lógica para guardar Ingresos y Categorías en el Backend
-                        // preferencesViewModel.saveIncome(monthlyIncome)
                         showSaveButton = false
-                        Log.d("Settings", "Guardando cambios: Ingreso=$monthlyIncome, Cats=${categoriesList.size}")
+                        Log.d("Settings", "Guardando cambios: Ingreso=$monthlyIncome")
                     },
                     containerColor = GreenPrimary,
                     contentColor = White,
@@ -192,7 +190,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
-            // 1. SECCIÓN FINANZAS (NUEVA)
+            // 1. SECCIÓN FINANZAS
             SectionHeader("Finanzas")
 
             // Tarjeta de Ingresos
@@ -234,8 +232,18 @@ fun SettingsScreen(
                 }
             }
 
-            // 2. SECCIÓN CATEGORÍAS (NUEVA IMPLEMENTACIÓN INLINE)
-            // Tarjeta de Gestión de Categorías
+            // --- Leyenda para gastos ---
+            Text(
+                text = "Esta información es únicamente para tu referencia personal y se almacena de forma local en tu dispositivo. Nosotros no guardamos estos datos en nuestros servidores.",
+                fontSize = 11.sp,
+                color = TextGray,
+                lineHeight = 14.sp,
+                textAlign = TextAlign.Justify,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+            // -------------------------------------
+
+            // 2. SECCIÓN CATEGORÍAS
             Card(
                 colors = CardDefaults.cardColors(containerColor = White),
                 shape = RoundedCornerShape(16.dp),
@@ -249,7 +257,6 @@ fun SettingsScreen(
                     ) {
                         Text("Categorías", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
 
-                        // Botón Toggle para Agregar
                         IconButton(
                             onClick = { isAddingCategory = !isAddingCategory },
                             colors = IconButtonDefaults.iconButtonColors(
@@ -264,7 +271,7 @@ fun SettingsScreen(
                         }
                     }
 
-                    // --- FORMULARIO INLINE (Diseño del Modal) ---
+                    // Formulario Inline
                     AnimatedVisibility(visible = isAddingCategory) {
                         Column(
                             modifier = Modifier
@@ -277,7 +284,6 @@ fun SettingsScreen(
                             Text("Nueva Categoría", fontWeight = FontWeight.Bold, color = TextDark)
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            // Input Nombre
                             BasicTextField(
                                 value = newCatName,
                                 onValueChange = { newCatName = it },
@@ -299,7 +305,6 @@ fun SettingsScreen(
                             Text("Icono", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextGray)
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            // Grid Iconos
                             val icons = listOf(Icons.Outlined.Star, Icons.Outlined.Face, Icons.Outlined.Pets, Icons.Outlined.Work, Icons.Outlined.Flight)
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 items(icons) { icon ->
@@ -318,7 +323,6 @@ fun SettingsScreen(
                             Text("Color", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextGray)
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            // Grid Colores
                             val colors = listOf(Color(0xFFE74C3C), Color(0xFF9B59B6), Color(0xFF2ECC71), Color(0xFF3498DB), Color(0xFFF1C40F))
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 items(colors) { color ->
@@ -351,17 +355,15 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Lista de Categorías Existentes
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(categoriesList) { cat ->
                             var showMenu by remember { mutableStateOf(false) }
 
-                            // Item de Categoría
                             Box(
                                 modifier = Modifier
                                     .width(80.dp)
                                     .background(Color(0xFFF5F6FA), RoundedCornerShape(12.dp))
-                                    .clickable { showMenu = true } // Al hacer click muestra opciones
+                                    .clickable { showMenu = true }
                                     .padding(vertical = 12.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -371,7 +373,6 @@ fun SettingsScreen(
                                     Text(cat.name, fontSize = 11.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, color = TextDark)
                                 }
 
-                                // Menú Contextual (Solo para Usuario)
                                 DropdownMenu(
                                     expanded = showMenu,
                                     onDismissRequest = { showMenu = false }
@@ -396,7 +397,6 @@ fun SettingsScreen(
                                         DropdownMenuItem(
                                             text = { Text("Editar") },
                                             onClick = {
-                                                // Aquí cargarías los datos en el form
                                                 newCatName = cat.name
                                                 newCatIcon = cat.icon
                                                 newCatColor = cat.color
@@ -413,7 +413,7 @@ fun SettingsScreen(
                 }
             }
 
-            // 3. APARIENCIA (EXISTENTE)
+            // 3. APARIENCIA
             SectionHeader("Apariencia")
             UserSettingsCard(
                 icon = Icons.Default.Palette,
@@ -451,7 +451,7 @@ fun SettingsScreen(
                 }
             }
 
-            // 4. MÉTODOS DE PAGO (EXISTENTE)
+            // 4. MÉTODOS DE PAGO
             SectionHeader("Métodos de Pago")
             Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -469,17 +469,31 @@ fun SettingsScreen(
                 }
             }
 
-            // 5. GESTIÓN DE CUENTA (EXISTENTE)
+            // 5. GESTIÓN DE CUENTA
             SectionHeader("Gestión de Cuenta")
             UserSettingsCard(icon = Icons.Default.ExitToApp, iconColor = Color(0xFFFF9800), iconBackground = Color(0xFFFFF3E0), title = "Cerrar Sesión", subtitle = "Salir de tu cuenta", onClick = { showLogoutDialog = true })
             UserSettingsCard(icon = Icons.Default.DeleteForever, iconColor = ErrorRed, iconBackground = Color(0xFFFFEBEE), title = "Eliminar Cuenta", subtitle = "Acción permanente", onClick = { showDeleteDialog = true })
 
-            // Espacio final para que el FAB no tape contenido
+            // Error message
+            if (state.errorMessage.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Error, null, tint = ErrorRed)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(state.errorMessage, color = ErrorRed, fontSize = 14.sp)
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(80.dp))
         }
     }
 
-    // --- DIÁLOGOS DE CONFIRMACIÓN (EXISTENTES) ---
+    // --- DIÁLOGOS DE CONFIRMACIÓN ---
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -505,7 +519,7 @@ fun SettingsScreen(
     }
 }
 
-// --- COMPONENTES AUXILIARES (EXISTENTES) ---
+// --- COMPONENTES AUXILIARES ---
 @Composable
 fun SectionHeader(title: String) {
     Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextGray, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
