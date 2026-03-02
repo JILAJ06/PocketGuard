@@ -314,13 +314,18 @@ fun FormSelector(value: String, icon: ImageVector, onClick: () -> Unit) {
             .fillMaxWidth()
             .height(56.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(InputBackground)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onClick() }
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(value, color = if(value.startsWith("Seleccionar")) TextGray.copy(alpha = 0.5f) else TextDark, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Text(
+            value,
+            color = if(value.startsWith("Seleccionar")) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
         Icon(icon, contentDescription = null, tint = GreenPrimary, modifier = Modifier.size(20.dp))
     }
 }

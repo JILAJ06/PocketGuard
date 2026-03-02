@@ -231,6 +231,108 @@ fun AddCardDialog(
     }
 }
 
+// --- DIÁLOGO EDITAR TARJETA ---
+@Composable
+fun EditCardDialog(
+    bankName: String,
+    last4Digits: String?,
+    initialAlias: String,
+    initialColorHex: String,
+    onDismiss: () -> Unit,
+    onSave: (String, String?) -> Unit // Solo alias y colorHex
+) {
+    var alias by remember { mutableStateOf(initialAlias) }
+    val cardColors = listOf(Color(0xFF1976D2), Color(0xFF2E7D32), Color(0xFFC62828), Color(0xFFF9A825), Color(0xFF8E44AD), Color(0xFF34495E))
+    var selectedColor by remember {
+        mutableStateOf(
+            try {
+                Color(android.graphics.Color.parseColor(initialColorHex))
+            } catch (e: Exception) {
+                cardColors[0]
+            }
+        )
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Editar Tarjeta", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Campo de solo lectura - Banco
+                OutlinedTextField(
+                    value = bankName,
+                    onValueChange = {},
+                    label = { Text("Nombre del Banco") },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = false,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = TextDark,
+                        disabledBorderColor = InputBackground,
+                        disabledLabelColor = TextGray
+                    )
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Campo editable - Alias
+                OutlinedTextField(
+                    value = alias,
+                    onValueChange = { alias = it },
+                    label = { Text("Alias") },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Campo de solo lectura - Últimos 4 dígitos
+                OutlinedTextField(
+                    value = last4Digits ?: "****",
+                    onValueChange = {},
+                    label = { Text("Últimos 4 dígitos") },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = false,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = TextDark,
+                        disabledBorderColor = InputBackground,
+                        disabledLabelColor = TextGray
+                    )
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text("Color", fontSize = 12.sp, color = TextGray, modifier = Modifier.align(Alignment.Start))
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    cardColors.forEach { color ->
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(color, CircleShape)
+                                .clickable { selectedColor = color }
+                                .border(
+                                    2.dp,
+                                    if(selectedColor == color) TextDark else Color.Transparent,
+                                    CircleShape
+                                )
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = { onSave(alias, colorToHex(selectedColor)) },
+                    enabled = alias.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
+                ) {
+                    Text("Guardar Cambios", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
 // --- COMPONENTES VISUALES ---
 @Composable
 fun MiniCreditCard(card: PaymentCard) {

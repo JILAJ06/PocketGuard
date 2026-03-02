@@ -181,13 +181,14 @@ fun NewExpenseModal(
                 // 4. Fecha
                 ExpenseLabel("Fecha del Gasto", Icons.Outlined.Event)
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(16.dp)).background(InputBackground)
+                    modifier = Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { showDatePicker = true }.padding(horizontal = 16.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = selectedDateDisplay, color = TextDark, fontWeight = FontWeight.Medium, fontSize = 16.sp)
-                        Icon(Icons.Default.CalendarToday, null, tint = TextDark, modifier = Modifier.size(20.dp))
+                        Text(text = selectedDateDisplay, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, fontSize = 16.sp)
+                        Icon(Icons.Default.CalendarToday, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
                     }
                 }
 
@@ -310,14 +311,24 @@ fun NewCategoryDialog(
 fun ExpenseLabel(text: String, icon: ImageVector? = null) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
         if (icon != null) { Icon(icon, null, tint = GreenPrimary, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(6.dp)) }
-        Text(text, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+        Text(text, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
 @Composable
 fun ExpenseInput(value: String, onValueChange: (String) -> Unit, placeholder: String) {
-    Box(modifier = Modifier.fillMaxWidth().height(56.dp).background(InputBackground, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
-        if (value.isEmpty()) Text(placeholder, color = TextGray.copy(alpha = 0.5f), fontSize = 14.sp)
-        BasicTextField(value = value, onValueChange = onValueChange, textStyle = TextStyle(fontSize = 16.sp, color = TextDark), modifier = Modifier.fillMaxWidth())
+    Box(
+        modifier = Modifier.fillMaxWidth().height(56.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        if (value.isEmpty()) Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = 14.sp)
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            textStyle = TextStyle(fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface),
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }

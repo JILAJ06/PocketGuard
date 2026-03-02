@@ -43,8 +43,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import com.example.pocketguard.components.AddCardDialog
+import com.example.pocketguard.components.EditCardDialog
 import com.example.pocketguard.components.MiniCreditCard
 import com.example.pocketguard.components.PaymentCard
+import com.example.pocketguard.data.models.Card
 import com.example.pocketguard.presentation.di.ServiceLocator
 import com.example.pocketguard.presentation.viewmodel.BanksViewModel
 import com.example.pocketguard.presentation.viewmodel.CardsViewModel
@@ -107,7 +109,7 @@ fun SettingsScreen(
     var selectedLanguage by remember { mutableStateOf("es") }
     var showAddCardDialog by remember { mutableStateOf(false) }
     var showEditCardDialog by remember { mutableStateOf(false) }
-    var cardToEdit by remember { mutableStateOf<com.example.pocketguard.data.models.response.Card?>(null) }
+    var cardToEdit by remember { mutableStateOf<Card?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -132,19 +134,23 @@ fun SettingsScreen(
     val banks = remember(banksState.banks) { banksState.banks.map { it.name } }
 
     if (showEditCardDialog && cardToEdit != null) {
-        AddCardDialog(
-            banks = banks,
+        EditCardDialog(
+            bankName = cardToEdit!!.bank_name,
+            last4Digits = cardToEdit!!.last_4_digits,
+            initialAlias = cardToEdit!!.alias,
+            initialColorHex = cardToEdit!!.color_hex ?: "#4A90E2",
             onDismiss = {
                 showEditCardDialog = false
                 cardToEdit = null
             },
-            onSave = { bankName, alias, digits, colorHex ->
+            onSave = { alias, colorHex ->
                 cardsViewModel.updateCard(
-                    cardId = cardToEdit!!.card_id,
-                    bankName = bankName,
+                    id = cardToEdit!!.card_id,
+                    bankName = null,
                     alias = alias,
-                    last4Digits = digits,
-                    colorHex = colorHex
+                    last4 = null,
+                    colorHex = colorHex,
+                    isDefault = null
                 )
                 showEditCardDialog = false
                 cardToEdit = null
