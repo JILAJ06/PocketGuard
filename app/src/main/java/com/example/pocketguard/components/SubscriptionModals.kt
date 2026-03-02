@@ -409,7 +409,7 @@ fun BigCategoryItem(data: SubCategoryData, isSelected: Boolean, onClick: () -> U
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(modifier = Modifier.size(48.dp).background(data.color.copy(alpha = 0.2f), CircleShape), contentAlignment = Alignment.Center) { Icon(data.icon, null, tint = data.color, modifier = Modifier.size(24.dp)) }
             Spacer(modifier = Modifier.height(8.dp))
-            Text(data.name, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = TextDark)
+            Text(data.name, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
         }
         if (isSelected) { Box(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(20.dp).background(GreenPrimary, CircleShape).border(2.dp, White, CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Default.Check, null, tint = White, modifier = Modifier.size(12.dp)) } }
     }

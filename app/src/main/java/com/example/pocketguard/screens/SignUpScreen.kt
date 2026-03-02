@@ -21,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.pocketguard.components.PocketGuardTextField
 import com.example.pocketguard.components.SocialButton
 import com.example.pocketguard.presentation.viewmodel.RegisterViewModel
+import com.example.pocketguard.ui.theme.PocketGuardTheme
 
 @Composable
 fun SignUpScreen(

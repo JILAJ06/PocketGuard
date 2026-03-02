@@ -55,6 +55,10 @@ fun PocketGuardNavigation() {
     val sessionManager = ServiceLocator.getSessionManager()
     val startDestination = if (sessionManager.isSessionActive()) "inicio" else "login"
 
+    val preferencesViewModel: PreferencesViewModel = viewModel(
+        factory = ServiceLocator.getPreferencesViewModelFactory()
+    )
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -181,6 +185,7 @@ fun PocketGuardNavigation() {
 
             composable("configuracion") {
                 SettingsScreen(
+                    preferencesViewModel = preferencesViewModel,
                     onLogout = {
                         sessionManager.clearSession()
                         navController.navigate("login") {

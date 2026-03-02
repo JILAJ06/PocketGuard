@@ -34,6 +34,7 @@ import com.example.pocketguard.presentation.di.ServiceLocator
 import com.example.pocketguard.presentation.viewmodel.BanksViewModel
 import com.example.pocketguard.presentation.viewmodel.CardsViewModel
 import com.example.pocketguard.ui.theme.*
+import androidx.compose.ui.tooling.preview.Preview
 
 // --- MODELO DE DATOS MEJORADO ---
 enum class AlertCategory {
@@ -138,7 +139,7 @@ fun AlertsScreen(
     }
 
     Scaffold(
-        containerColor = BackgroundLight,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             // Cabecera Verde
             Box(
@@ -176,7 +177,6 @@ fun AlertsScreen(
 
             // 1. Tarjetas de Resumen (Dinámicas)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Tarjeta Roja (Sin Leer) - Clic para filtrar rápido
                 StatsCard(
                     title = "Sin leer",
                     count = unreadCount.toString(),
@@ -185,22 +185,20 @@ fun AlertsScreen(
                     contentColor = White,
                     modifier = Modifier.weight(1f).clickable { selectedFilter = "Sin leer" }
                 )
-                // Tarjeta Blanca (Alta Prioridad)
                 StatsCard(
                     title = "Alta",
                     count = highPriorityCount.toString(),
                     icon = Icons.Outlined.ErrorOutline,
-                    backgroundColor = White,
-                    contentColor = TextDark,
+                    backgroundColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
-                // Tarjeta Blanca (Cargos/Suscripciones)
                 StatsCard(
                     title = "Cargos",
                     count = subscriptionCount.toString(),
                     icon = Icons.Outlined.CalendarToday,
-                    backgroundColor = White,
-                    contentColor = TextDark,
+                    backgroundColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f).clickable { selectedFilter = "Suscripciones" }
                 )
             }
@@ -281,6 +279,10 @@ fun AlertsScreen(
     if (showSettingsModal) {
         AlertSettingsModal(
             onDismiss = { showSettingsModal = false },
+            initialEmailEnabled = notificationsState.settings?.email_enabled ?: false,
+            initialPushEnabled = notificationsState.settings?.push_enabled ?: false,
+            initialSubscriptionReminders = notificationsState.settings?.subscription_reminders ?: true,
+            initialDaysBeforeNotice = notificationsState.settings?.days_before_notice ?: 7,
             onSavePreferences = { emailEnabled, pushEnabled, subAlerts, budgetAlerts, days ->
                 notificationsViewModel.updateNotificationSettings(
                     emailEnabled = emailEnabled,
@@ -320,22 +322,30 @@ fun StatsCard(title: String, count: String, icon: ImageVector, backgroundColor: 
 fun FilterChip(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .background(if (isSelected) GreenPrimary else White, RoundedCornerShape(20.dp))
+            .background(
+                if (isSelected) GreenPrimary else MaterialTheme.colorScheme.surface,
+                RoundedCornerShape(20.dp)
+            )
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Text(text, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = if (isSelected) White else TextGray)
+        Text(
+            text,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp,
+            color = if (isSelected) White else MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
 @Composable
 fun AlertItemCard(alert: AlertItemUI, onClick: () -> Unit) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() } // Marcar como leída al tocar
+            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -365,9 +375,9 @@ fun AlertItemCard(alert: AlertItemUI, onClick: () -> Unit) {
             Column {
                 Text(
                     text = alert.title,
-                    fontWeight = if(!alert.isRead) FontWeight.Bold else FontWeight.Medium, // Negrita si no se ha leído
+                    fontWeight = if(!alert.isRead) FontWeight.Bold else FontWeight.Medium,
                     fontSize = 15.sp,
-                    color = TextDark
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(alert.description, fontSize = 13.sp, color = TextGray, lineHeight = 18.sp)
@@ -381,3 +391,20 @@ fun AlertItemCard(alert: AlertItemUI, onClick: () -> Unit) {
         }
     }
 }
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun AlertsScreenPreview() {
+    PocketGuardTheme {
+        AlertsScreen()
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun AlertsScreenDarkPreview() {
+    PocketGuardTheme(darkTheme = true) {
+        AlertsScreen()
+    }
+}
+

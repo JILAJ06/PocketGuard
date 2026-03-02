@@ -334,9 +334,9 @@ fun CustomDropdown(expanded: Boolean, onDismiss: () -> Unit, items: List<String>
     ) {
         items.forEach { item ->
             DropdownMenuItem(
-                text = { Text(item, color = TextDark) },
+                text = { Text(item, color = MaterialTheme.colorScheme.onSurface) },
                 onClick = { onSelected(item); onDismiss() },
-                colors = MenuDefaults.itemColors(textColor = TextDark)
+                colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.onSurface)
             )
         }
     }

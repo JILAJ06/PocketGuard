@@ -37,6 +37,7 @@ import com.example.pocketguard.presentation.di.ServiceLocator
 import com.example.pocketguard.presentation.viewmodel.CategoriesViewModel
 import com.example.pocketguard.presentation.viewmodel.ExpensesViewModel
 import com.example.pocketguard.ui.theme.*
+import androidx.compose.ui.tooling.preview.Preview
 
 data class ExpenseUI(
     val id: String,
@@ -92,8 +93,11 @@ fun ExpensesScreen(
         }
     }
 
-    val expenses = remember(state.expenses) {
+    val expenses = remember(state.expenses, categoriesState.categories) {
         state.expenses.map { expense ->
+            val currentCategory = categoriesState.categories.firstOrNull { it.name == expense.categoryName }
+            val categoryColor = currentCategory?.color_hex ?: expense.categoryColor
+
             ExpenseUI(
                 id = expense.id,
                 title = expense.name,
@@ -102,7 +106,7 @@ fun ExpensesScreen(
                 amountValue = expense.amount,
                 date = expense.expenseDate.substring(5, 10).replace("-", "-"),
                 icon = Icons.Outlined.ShoppingCart,
-                color = Color(android.graphics.Color.parseColor(expense.categoryColor))
+                color = Color(android.graphics.Color.parseColor(categoryColor))
             )
         }
     }
@@ -135,17 +139,17 @@ fun ExpensesScreen(
     if (showDeleteDialog && expenseToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            containerColor = White,
+            containerColor = MaterialTheme.colorScheme.surface,
             icon = { Icon(Icons.Outlined.Delete, null, tint = ErrorRed) },
-            title = { Text("Eliminar Gasto", fontWeight = FontWeight.Bold, color = TextDark) },
+            title = { Text("Eliminar Gasto", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface) },
             text = { Text("¿Eliminar '${expenseToDelete?.name}'?", color = TextGray) },
             confirmButton = { Button(onClick = { viewModel.deleteExpense(expenseToDelete!!.id); showDeleteDialog = false; expenseToDelete = null }, colors = ButtonDefaults.buttonColors(containerColor = ErrorRed)) { Text("Eliminar", fontWeight = FontWeight.Bold) } },
-            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar", color = TextDark) } }
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurface) } }
         )
     }
 
     Scaffold(
-        containerColor = BackgroundLight,
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             FloatingActionButton(onClick = { showNewExpenseModal = true }, containerColor = GreenPrimary, contentColor = White, shape = CircleShape, elevation = FloatingActionButtonDefaults.elevation(8.dp)) {
                 Icon(Icons.Default.Add, contentDescription = "Nuevo Gasto")
@@ -171,7 +175,7 @@ fun ExpensesScreen(
         } else {
             Column(modifier = Modifier.fillMaxSize().padding(paddingValues).verticalScroll(rememberScrollState()).padding(20.dp)) {
 
-                Text("Gastos Diarios", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                Text("Gastos Diarios", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 Text("Registra tus gastos", fontSize = 13.sp, color = TextGray)
                 Spacer(modifier = Modifier.height(20.dp))
 
@@ -192,10 +196,10 @@ fun ExpensesScreen(
                 }
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(0.dp), modifier = Modifier.fillMaxWidth()) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(0.dp), modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("Tendencia Semanal", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
+                            Text("Tendencia Semanal", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
                             if (selectedDayIndex != null) Text(text = weeklyData[selectedDayIndex!!].displayAmount, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = GreenPrimary)
                         }
                         Spacer(modifier = Modifier.height(24.dp))
@@ -214,11 +218,11 @@ fun ExpensesScreen(
                 }
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Lista de Gastos", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
-                            Text("$${String.format("%.2f", currentTotal)}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
+                            Text("Lista de Gastos", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
+                            Text("$${String.format("%.2f", currentTotal)}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                         if (filteredExpenses.isEmpty()) Text("No hay gastos en esta categoría.", color = TextGray, fontSize = 14.sp, modifier = Modifier.padding(vertical = 20.dp).align(Alignment.CenterHorizontally))
@@ -338,16 +342,40 @@ fun ProfessionalBarChart(
 // ... Resto de componentes (FilterChipUI, QuickActionButton, etc.) se mantienen igual ...
 @Composable
 fun FilterChipUI(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    Box(modifier = Modifier.background(color = if (isSelected) GreenPrimary else White, shape = RoundedCornerShape(20.dp)).clickable { onClick() }.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(text = text, color = if (isSelected) White else TextDark, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+    Box(
+        modifier = Modifier
+            .background(
+                color = if (isSelected) GreenPrimary else MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(20.dp)
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = text,
+            color = if (isSelected) White else MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp
+        )
     }
 }
 
 @Composable
 fun QuickActionButton(title: String, price: String, icon: ImageVector) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(80.dp).background(White, RoundedCornerShape(16.dp)).clickable { }.padding(vertical = 12.dp)) {
-        Box(modifier = Modifier.size(40.dp).background(GreenPrimary.copy(0.1f), CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = GreenPrimary, modifier = Modifier.size(20.dp)) }
-        Spacer(modifier = Modifier.height(8.dp)); Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextDark); Text(price, fontSize = 10.sp, color = TextGray)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(80.dp)
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+            .clickable { }
+            .padding(vertical = 12.dp)
+    ) {
+        Box(modifier = Modifier.size(40.dp).background(GreenPrimary.copy(0.1f), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = GreenPrimary, modifier = Modifier.size(20.dp))
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Text(price, fontSize = 10.sp, color = TextGray)
     }
 }
 
@@ -361,9 +389,18 @@ fun SummaryCardDark(title: String, amount: String, modifier: Modifier = Modifier
 
 @Composable
 fun SummaryCardLight(title: String, amount: String, icon: String, color: Color, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.background(White, RoundedCornerShape(16.dp)).padding(16.dp).height(100.dp), verticalArrangement = Arrangement.SpaceBetween) {
+    Column(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+            .padding(16.dp)
+            .height(100.dp),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
         Text(icon, fontSize = 20.sp, color = color, fontWeight = FontWeight.Bold)
-        Column { Text(title, fontSize = 12.sp, color = TextGray); Text(amount, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark) }
+        Column {
+            Text(title, fontSize = 12.sp, color = TextGray)
+            Text(amount, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        }
     }
 }
 
@@ -372,11 +409,30 @@ fun ExpenseListItem(expense: ExpenseUI, onDelete: () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.size(40.dp).background(expense.color.copy(0.1f), CircleShape), contentAlignment = Alignment.Center) { Icon(expense.icon, null, tint = expense.color, modifier = Modifier.size(20.dp)) }
         Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) { Text(expense.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextDark); Text(expense.date, fontSize = 11.sp, color = TextGray) }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(expense.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Text(expense.date, fontSize = 11.sp, color = TextGray)
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(expense.amount, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ErrorRed)
             Spacer(modifier = Modifier.width(12.dp))
             Icon(Icons.Outlined.Delete, contentDescription = "Eliminar", tint = ErrorRed.copy(0.7f), modifier = Modifier.size(18.dp).clickable { onDelete() })
         }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun ExpensesScreenPreview() {
+    PocketGuardTheme {
+        ExpensesScreen(onAuthExpired = {})
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun ExpensesScreenDarkPreview() {
+    PocketGuardTheme(darkTheme = true) {
+        ExpensesScreen(onAuthExpired = {})
     }
 }

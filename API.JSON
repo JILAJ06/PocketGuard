@@ -1,2002 +1,1340 @@
 {
-  "api": {
+  "api_info": {
     "name": "PocketGuard API",
     "version": "1.0.0",
-    "baseUrl": "http://localhost:3001",
-    "description": "API completa para gestión de suscripciones, gastos, tarjetas y preferencias de usuario"
+    "base_url": "http://localhost:3001",
+    "base_url_production": "https://tu-dominio.com",
+    "description": "API REST para gestión de suscripciones, gastos y finanzas personales"
   },
-  "endpoints": [
-    {
-      "module": "Health Check",
-      "description": "Verificación del estado del servidor",
-      "endpoints": [
-        {
-          "name": "Health Status",
-          "method": "GET",
-          "path": "/health",
-          "authentication": false,
-          "description": "Verificar el estado del servidor",
-          "request": {
-            "headers": {},
-            "body": null,
-            "queryParams": null
+  "authentication": {
+    "type": "JWT Bearer Token",
+    "header": "Authorization: Bearer <accessToken>",
+    "token_expiration": "15 minutos",
+    "refresh_token_expiration": "7 días",
+    "refresh_token_storage": "HttpOnly Cookie (pg_refresh_token)",
+    "note": "El refreshToken se envía automáticamente en cookies, NO lo incluyas en requests"
+  },
+  "endpoints": {
+    "health_check": {
+      "method": "GET",
+      "path": "/health",
+      "authentication": false,
+      "description": "Verificar estado del servidor",
+      "request": null,
+      "response_success": {
+        "status": 200,
+        "body": {
+          "status": "UP",
+          "service": "PocketGuard API",
+          "version": "1.0.0",
+          "time": "2026-03-02T10:30:00.000Z"
+        }
+      }
+    },
+    "auth": {
+      "register": {
+        "method": "POST",
+        "path": "/api/v1/auth/register",
+        "authentication": false,
+        "description": "Registrar un nuevo usuario",
+        "request": {
+          "headers": {
+            "Content-Type": "application/json"
           },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "status": "UP",
-                "timestamp": "2026-02-28T10:30:00.000Z",
-                "uptime": 3600,
-                "environment": "development"
+          "body": {
+            "email": "usuario@example.com",
+            "password": "Password123",
+            "fullName": "Juan Pérez"
+          },
+          "validation": {
+            "email": "Required, valid email format",
+            "password": "Required, min 8 chars, 1 uppercase, 1 number",
+            "fullName": "Required, 2-100 chars"
+          }
+        },
+        "response_success": {
+          "status": 201,
+          "body": {
+            "success": true,
+            "message": "Usuario registrado exitosamente.",
+            "data": {
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+              "user": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "email": "usuario@example.com",
+                "fullName": "Juan Pérez",
+                "role": "user",
+                "theme": "system",
+                "language": "es"
+              }
+            }
+          },
+          "cookies": {
+            "pg_refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          }
+        },
+        "response_errors": [
+          {
+            "status": 409,
+            "body": {
+              "success": false,
+              "message": "Este email ya está registrado. Intenta iniciar sesión."
+            }
+          },
+          {
+            "status": 422,
+            "body": {
+              "success": false,
+              "message": "Error de validación. Revisa los campos enviados.",
+              "errors": [
+                {
+                  "field": "password",
+                  "message": "Debe contener al menos una letra mayúscula."
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "login": {
+        "method": "POST",
+        "path": "/api/v1/auth/login",
+        "authentication": false,
+        "description": "Iniciar sesión",
+        "request": {
+          "body": {
+            "email": "usuario@example.com",
+            "password": "Password123"
+          }
+        },
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Inicio de sesión exitoso.",
+            "data": {
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+              "user": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "email": "usuario@example.com",
+                "fullName": "Juan Pérez",
+                "role": "user",
+                "theme": "system",
+                "language": "es"
+              }
+            }
+          }
+        },
+        "response_errors": [
+          {
+            "status": 401,
+            "body": {
+              "success": false,
+              "message": "Credenciales incorrectas. Verifica tu email y contraseña."
+            }
+          }
+        ]
+      },
+      "refresh": {
+        "method": "POST",
+        "path": "/api/v1/auth/refresh",
+        "authentication": false,
+        "description": "Renovar accessToken usando refreshToken de las cookies",
+        "request": {
+          "headers": {
+            "Cookie": "pg_refresh_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "note": "Android enviará automáticamente la cookie si usas el mismo cliente HTTP"
+        },
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Token renovado.",
+            "data": {
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            }
+          }
+        },
+        "response_errors": [
+          {
+            "status": 401,
+            "body": {
+              "success": false,
+              "message": "La sesión ha expirado. Por favor vuelve a iniciar sesión."
+            }
+          }
+        ]
+      },
+      "me": {
+        "method": "GET",
+        "path": "/api/v1/auth/me",
+        "authentication": true,
+        "description": "Obtener perfil del usuario autenticado",
+        "request": {
+          "headers": {
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          }
+        },
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Perfil del usuario autenticado.",
+            "data": {
+              "user": {
+                "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                "email": "usuario@example.com",
+                "full_name": "Juan Pérez",
+                "role_name": "user",
+                "theme_name": "system",
+                "language_code": "es",
+                "email_enabled": true,
+                "push_enabled": true,
+                "days_before_notice": 3,
+                "created_at": "2026-01-15T10:30:00.000Z"
               }
             }
           }
         }
-      ]
-    },
-    {
-      "module": "Authentication",
-      "description": "Autenticación y gestión de usuarios",
-      "endpoints": [
-        {
-          "name": "Register",
-          "method": "POST",
-          "path": "/api/v1/auth/register",
-          "authentication": false,
-          "description": "Registrar un nuevo usuario en el sistema",
-          "request": {
-            "headers": {
-              "Content-Type": "application/json"
-            },
+      },
+      "logout": {
+        "method": "POST",
+        "path": "/api/v1/auth/logout",
+        "authentication": true,
+        "description": "Cerrar sesión (limpia cookie de refreshToken)",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Sesión cerrada correctamente."
+          }
+        }
+      },
+      "forgot_password": {
+        "method": "POST",
+        "path": "/api/v1/auth/forgot-password",
+        "authentication": false,
+        "description": "Solicitar recuperación de contraseña",
+        "request": {
+          "body": {
+            "email": "usuario@example.com"
+          }
+        },
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Si el correo existe recibirás un enlace de recuperación."
+          }
+        }
+      },
+      "reset_password": {
+        "method": "POST",
+        "path": "/api/v1/auth/reset-password",
+        "authentication": false,
+        "description": "Restablecer contraseña con token de recuperación",
+        "request": {
+          "body": {
+            "token": "a1b2c3d4e5f6...",
+            "newPassword": "NewPassword123"
+          }
+        },
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Contraseña actualizada correctamente. Ya puedes iniciar sesión."
+          }
+        },
+        "response_errors": [
+          {
+            "status": 400,
             "body": {
-              "email": "user@example.com",
-              "password": "Password123",
-              "fullName": "Usuario de Prueba"
-            },
-            "validation": {
-              "email": "Required, valid email format",
-              "password": "Required, min 8 characters, 1 uppercase, 1 number",
-              "fullName": "Required, 2-100 characters"
+              "success": false,
+              "message": "El enlace de recuperación es inválido o ha expirado."
             }
-          },
-          "response": {
-            "success": {
-              "status": 201,
-              "body": {
-                "success": true,
-                "message": "Usuario registrado exitosamente.",
-                "data": {
-                  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                  "user": {
-                    "id": "550e8400-e29b-41d4-a716-446655440000",
-                    "email": "user@example.com",
-                    "fullName": "Usuario de Prueba",
-                    "role": "user",
-                    "theme": null,
-                    "language": null
-                  }
+          }
+        ]
+      },
+      "delete_account": {
+        "method": "DELETE",
+        "path": "/api/v1/auth/account",
+        "authentication": true,
+        "description": "Eliminar cuenta del usuario",
+        "request": {
+          "body": {
+            "password": "Password123"
+          }
+        },
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Cuenta eliminada correctamente."
+          }
+        }
+      }
+    },
+    "subscriptions": {
+      "get_billing_cycles": {
+        "method": "GET",
+        "path": "/api/v1/subscriptions/billing-cycles",
+        "authentication": true,
+        "description": "Obtener ciclos de facturación disponibles",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Ciclos de facturación.",
+            "data": {
+              "billing_cycles": [
+                {"id": 1, "name": "Daily"},
+                {"id": 2, "name": "Weekly"},
+                {"id": 3, "name": "Monthly"},
+                {"id": 4, "name": "Yearly"}
+              ]
+            }
+          }
+        }
+      },
+      "get_metrics": {
+        "method": "GET",
+        "path": "/api/v1/subscriptions/metrics",
+        "authentication": true,
+        "description": "Obtener métricas de suscripciones del usuario",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Métricas de suscripciones.",
+            "data": {
+              "metrics": [
+                {
+                  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "service_name": "Netflix",
+                  "amount": 199,
+                  "billing_cycle": "Monthly",
+                  "annualized_cost": 2388
                 }
-              },
-              "cookies": {
-                "pg_refresh_token": "refresh_token_value_here"
+              ]
+            }
+          }
+        }
+      },
+      "get_all": {
+        "method": "GET",
+        "path": "/api/v1/subscriptions",
+        "authentication": true,
+        "description": "Obtener todas las suscripciones del usuario",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Suscripciones obtenidas.",
+            "data": {
+              "subscriptions": [
+                {
+                  "subscription_id": "650e8400-e29b-41d4-a716-446655440001",
+                  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "service_name": "Netflix",
+                  "amount": 199,
+                  "next_payment_date": "2026-04-15",
+                  "category_name": "Entretenimiento",
+                  "category_icon": "https://example.com/icon.png",
+                  "category_color": "#E53935",
+                  "billing_cycle": "Monthly",
+                  "card_alias": "Visa *1234",
+                  "card_last_digits": "1234",
+                  "days_until_payment": 44
+                }
+              ]
+            }
+          }
+        }
+      },
+      "get_by_id": {
+        "method": "GET",
+        "path": "/api/v1/subscriptions/:id",
+        "authentication": true,
+        "description": "Obtener suscripción específica",
+        "path_params": {
+          "id": "UUID de la suscripción"
+        },
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Suscripción obtenida.",
+            "data": {
+              "subscription": {
+                "subscription_id": "650e8400-e29b-41d4-a716-446655440001",
+                "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                "service_name": "Netflix",
+                "amount": 199,
+                "next_payment_date": "2026-04-15",
+                "category_name": "Entretenimiento",
+                "category_icon": null,
+                "category_color": "#E53935",
+                "billing_cycle": "Monthly",
+                "card_alias": "Visa *1234",
+                "card_last_digits": "1234",
+                "days_until_payment": 44
               }
-            },
-            "error": {
-              "status": 422,
-              "body": {
-                "success": false,
-                "message": "Error de validación. Revisa los campos enviados.",
-                "errors": [
+            }
+          }
+        },
+        "response_errors": [
+          {
+            "status": 404,
+            "body": {
+              "success": false,
+              "message": "Suscripción no encontrada."
+            }
+          }
+        ]
+      },
+      "create": {
+        "method": "POST",
+        "path": "/api/v1/subscriptions",
+        "authentication": true,
+        "description": "Crear nueva suscripción",
+        "request": {
+          "body": {
+            "service_name": "Spotify",
+            "amount": 99.00,
+            "next_payment_date": "2026-04-01",
+            "billing_cycle_id": 3,
+            "category_id": "750e8400-e29b-41d4-a716-446655440002",
+            "used_card_id": "850e8400-e29b-41d4-a716-446655440003"
+          },
+          "validation": {
+            "service_name": "Required, max 100 chars",
+            "amount": "Required, > 0",
+            "next_payment_date": "Required, format YYYY-MM-DD",
+            "billing_cycle_id": "Required, integer > 0",
+            "category_id": "Required, valid UUID",
+            "used_card_id": "Optional, valid UUID"
+          }
+        },
+        "response_success": {
+          "status": 201,
+          "body": {
+            "success": true,
+            "message": "Suscripción creada.",
+            "data": {
+              "subscription": {
+                "subscription_id": "650e8400-e29b-41d4-a716-446655440001",
+                "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                "service_name": "Spotify",
+                "amount": 99,
+                "next_payment_date": "2026-04-01",
+                "category_name": "Música",
+                "category_icon": null,
+                "category_color": "#1DB954",
+                "billing_cycle": "Monthly",
+                "card_alias": "Mastercard *5678",
+                "card_last_digits": "5678",
+                "days_until_payment": 30
+              }
+            }
+          }
+        }
+      },
+      "update": {
+        "method": "PATCH",
+        "path": "/api/v1/subscriptions/:id",
+        "authentication": true,
+        "description": "Actualizar suscripción existente",
+        "request": {
+          "body": {
+            "service_name": "Spotify Premium",
+            "amount": 119.00,
+            "next_payment_date": "2026-04-05"
+          },
+          "note": "Todos los campos son opcionales"
+        },
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Suscripción actualizada.",
+            "data": {
+              "subscription": {
+                "subscription_id": "650e8400-e29b-41d4-a716-446655440001",
+                "service_name": "Spotify Premium",
+                "amount": 119
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "method": "DELETE",
+        "path": "/api/v1/subscriptions/:id",
+        "authentication": true,
+        "description": "Eliminar suscripción (soft delete)",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Suscripción eliminada."
+          }
+        }
+      }
+    },
+    "expenses": {
+      "get_summary": {
+        "method": "GET",
+        "path": "/api/v1/expenses/summary",
+        "authentication": true,
+        "description": "Obtener resumen de gastos por mes/año",
+        "query_params": {
+          "month": "Mes (1-12), opcional, default: mes actual",
+          "year": "Año (YYYY), opcional, default: año actual"
+        },
+        "example": "/api/v1/expenses/summary?month=2&year=2026",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Resumen de gastos.",
+            "data": {
+              "summary": {
+                "total_expenses": 3,
+                "total_amount": 1547.50,
+                "by_category": [
                   {
-                    "field": "email",
-                    "message": "El email es requerido."
+                    "category_id": "750e8400-e29b-41d4-a716-446655440002",
+                    "category_name": "Comida",
+                    "category_color": "#FF9800",
+                    "total": 850.50,
+                    "count": 2
                   }
                 ]
               }
             }
           }
-        },
-        {
-          "name": "Login",
-          "method": "POST",
-          "path": "/api/v1/auth/login",
-          "authentication": false,
-          "description": "Iniciar sesión con credenciales",
-          "request": {
-            "headers": {
-              "Content-Type": "application/json"
-            },
-            "body": {
-              "email": "user@example.com",
-              "password": "Password123"
-            },
-            "validation": {
-              "email": "Required, valid email format",
-              "password": "Required, min 8 characters"
-            }
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Inicio de sesión exitoso.",
-                "data": {
-                  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                  "user": {
-                    "id": "550e8400-e29b-41d4-a716-446655440000",
-                    "email": "user@example.com",
-                    "fullName": "Usuario de Prueba",
-                    "role": "user",
-                    "theme": "dark",
-                    "language": "es"
-                  }
+        }
+      },
+      "get_all": {
+        "method": "GET",
+        "path": "/api/v1/expenses",
+        "authentication": true,
+        "description": "Obtener todos los gastos del usuario",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Gastos obtenidos.",
+            "data": {
+              "expenses": [
+                {
+                  "id": "65f8b3c5d2a1e4f7g8h9i0j1",
+                  "userId": "550e8400-e29b-41d4-a716-446655440000",
+                  "categoryId": "750e8400-e29b-41d4-a716-446655440002",
+                  "categoryName": "Comida",
+                  "categoryColor": "#FF9800",
+                  "name": "Comida rápida",
+                  "amount": 250.50,
+                  "expenseDate": "2026-03-01",
+                  "createdAt": "2026-03-01T14:30:00.000Z"
                 }
-              },
-              "cookies": {
-                "pg_refresh_token": "refresh_token_value_here"
-              }
-            },
-            "error": {
-              "status": 401,
-              "body": {
-                "success": false,
-                "message": "Credenciales inválidas."
-              }
-            }
-          }
-        },
-        {
-          "name": "Get Current User",
-          "method": "GET",
-          "path": "/api/v1/auth/me",
-          "authentication": true,
-          "description": "Obtener información del usuario autenticado",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Perfil del usuario autenticado.",
-                "data": {
-                  "user": {
-                    "id": "550e8400-e29b-41d4-a716-446655440000",
-                    "email": "user@example.com",
-                    "fullName": "Usuario de Prueba",
-                    "role": "user",
-                    "theme": "dark",
-                    "language": "es"
-                  }
-                }
-              }
-            },
-            "error": {
-              "status": 401,
-              "body": {
-                "success": false,
-                "message": "Token no proporcionado o inválido."
-              }
-            }
-          }
-        },
-        {
-          "name": "Refresh Token",
-          "method": "POST",
-          "path": "/api/v1/auth/refresh",
-          "authentication": false,
-          "description": "Renovar access token usando refresh token en cookies",
-          "request": {
-            "headers": {},
-            "body": null,
-            "cookies": {
-              "pg_refresh_token": "required"
-            }
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Token renovado.",
-                "data": {
-                  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                }
-              }
-            },
-            "error": {
-              "status": 401,
-              "body": {
-                "success": false,
-                "message": "No se encontró token de sesión. Inicia sesión nuevamente."
-              }
-            }
-          }
-        },
-        {
-          "name": "Logout",
-          "method": "POST",
-          "path": "/api/v1/auth/logout",
-          "authentication": true,
-          "description": "Cerrar sesión y eliminar cookies",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Sesión cerrada correctamente."
-              },
-              "cookies": {
-                "pg_refresh_token": "deleted"
-              }
-            }
-          }
-        },
-        {
-          "name": "Google OAuth Start",
-          "method": "GET",
-          "path": "/api/v1/auth/google",
-          "authentication": false,
-          "description": "Iniciar flujo de autenticación con Google OAuth",
-          "request": {
-            "headers": {},
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 302,
-              "redirect": "https://accounts.google.com/o/oauth2/v2/auth?..."
-            }
-          }
-        },
-        {
-          "name": "Google OAuth Callback",
-          "method": "GET",
-          "path": "/api/v1/auth/google/callback",
-          "authentication": false,
-          "description": "Callback de Google OAuth después de autenticación",
-          "request": {
-            "headers": {},
-            "queryParams": {
-              "code": "google_auth_code",
-              "state": "optional_state"
-            }
-          },
-          "response": {
-            "success": {
-              "status": 302,
-              "redirect": "${ALLOWED_ORIGIN}/auth/callback?token={accessToken}",
-              "cookies": {
-                "pg_refresh_token": "refresh_token_value_here"
-              }
-            },
-            "error": {
-              "status": 302,
-              "redirect": "${ALLOWED_ORIGIN}/auth/error"
+              ]
             }
           }
         }
-      ]
-    },
-    {
-      "module": "Banks",
-      "description": "Gestión de bancos (globales y personalizados)",
-      "endpoints": [
-        {
-          "name": "Get All Banks",
-          "method": "GET",
-          "path": "/api/v1/banks",
-          "authentication": true,
-          "description": "Obtener todos los bancos accesibles (globales + personalizados del usuario)",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
+      },
+      "create": {
+        "method": "POST",
+        "path": "/api/v1/expenses",
+        "authentication": true,
+        "description": "Registrar nuevo gasto",
+        "request": {
+          "body": {
+            "category_id": "750e8400-e29b-41d4-a716-446655440002",
+            "name": "Café Starbucks",
+            "amount": 65.00,
+            "expense_date": "2026-03-02"
           },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Bancos obtenidos.",
-                "data": {
-                  "banks": [
-                    {
-                      "bank_id": "550e8400-e29b-41d4-a716-446655440001",
-                      "user_id": null,
-                      "name": "BBVA México",
-                      "is_global": true,
-                      "updated_at": "2026-02-28T10:30:00.000Z"
-                    },
-                    {
-                      "bank_id": "550e8400-e29b-41d4-a716-446655440002",
-                      "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                      "name": "Mi Banco Personal",
-                      "is_global": false,
-                      "updated_at": "2026-02-28T10:30:00.000Z"
-                    }
-                  ]
-                }
-              }
-            }
+          "validation": {
+            "category_id": "Required, valid UUID",
+            "name": "Required, max 255 chars",
+            "amount": "Required, > 0",
+            "expense_date": "Required, format YYYY-MM-DD"
           }
         },
-        {
-          "name": "Get Global Banks",
-          "method": "GET",
-          "path": "/api/v1/banks/global",
-          "authentication": true,
-          "description": "Obtener solo bancos globales del sistema",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Bancos globales obtenidos.",
-                "data": {
-                  "banks": [
-                    {
-                      "bank_id": "550e8400-e29b-41d4-a716-446655440001",
-                      "user_id": null,
-                      "name": "BBVA México",
-                      "is_global": true,
-                      "updated_at": "2026-02-28T10:30:00.000Z"
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Get Bank by ID",
-          "method": "GET",
-          "path": "/api/v1/banks/:id",
-          "authentication": true,
-          "description": "Obtener banco específico por ID",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440001"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Banco obtenido.",
-                "data": {
-                  "bank": {
-                    "bank_id": "550e8400-e29b-41d4-a716-446655440001",
-                    "user_id": null,
-                    "name": "BBVA México",
-                    "is_global": true,
-                    "updated_at": "2026-02-28T10:30:00.000Z"
-                  }
-                }
-              }
-            },
-            "error": {
-              "status": 404,
-              "body": {
-                "success": false,
-                "message": "Banco no encontrado."
-              }
-            }
-          }
-        },
-        {
-          "name": "Create Bank",
-          "method": "POST",
-          "path": "/api/v1/banks",
-          "authentication": true,
-          "description": "Crear nuevo banco personalizado",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}",
-              "Content-Type": "application/json"
-            },
-            "body": {
-              "name": "Mi Banco Personal"
-            },
-            "validation": {
-              "name": "Required, max 100 characters"
-            }
-          },
-          "response": {
-            "success": {
-              "status": 201,
-              "body": {
-                "success": true,
-                "message": "Banco creado.",
-                "data": {
-                  "bank": {
-                    "bank_id": "550e8400-e29b-41d4-a716-446655440002",
-                    "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                    "name": "Mi Banco Personal",
-                    "is_global": false,
-                    "updated_at": "2026-02-28T10:30:00.000Z"
-                  }
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Update Bank",
-          "method": "PATCH",
-          "path": "/api/v1/banks/:id",
-          "authentication": true,
-          "description": "Actualizar banco personalizado",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}",
-              "Content-Type": "application/json"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440002"
-            },
-            "body": {
-              "name": "Mi Banco Actualizado"
-            },
-            "validation": {
-              "name": "Optional, 1-100 characters"
-            }
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Banco actualizado.",
-                "data": {
-                  "bank": {
-                    "bank_id": "550e8400-e29b-41d4-a716-446655440002",
-                    "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                    "name": "Mi Banco Actualizado",
-                    "is_global": false,
-                    "updated_at": "2026-02-28T11:00:00.000Z"
-                  }
-                }
-              }
-            },
-            "error": {
-              "status": 403,
-              "body": {
-                "success": false,
-                "message": "No puedes modificar un banco global."
-              }
-            }
-          }
-        },
-        {
-          "name": "Delete Bank",
-          "method": "DELETE",
-          "path": "/api/v1/banks/:id",
-          "authentication": true,
-          "description": "Eliminar banco personalizado (soft delete)",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440002"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Banco eliminado."
-              }
-            },
-            "error": {
-              "status": 403,
-              "body": {
-                "success": false,
-                "message": "No puedes eliminar un banco global."
+        "response_success": {
+          "status": 201,
+          "body": {
+            "success": true,
+            "message": "Gasto registrado.",
+            "data": {
+              "expense": {
+                "id": "65f8b3c5d2a1e4f7g8h9i0j2",
+                "userId": "550e8400-e29b-41d4-a716-446655440000",
+                "categoryId": "750e8400-e29b-41d4-a716-446655440002",
+                "categoryName": "Comida",
+                "categoryColor": "#FF9800",
+                "name": "Café Starbucks",
+                "amount": 65,
+                "expenseDate": "2026-03-02",
+                "createdAt": "2026-03-02T10:15:00.000Z"
               }
             }
           }
         }
-      ]
-    },
-    {
-      "module": "Categories",
-      "description": "Gestión de categorías (globales y personalizadas)",
-      "endpoints": [
-        {
-          "name": "Get All Categories",
-          "method": "GET",
-          "path": "/api/v1/categories",
-          "authentication": true,
-          "description": "Obtener todas las categorías accesibles (globales + personalizadas del usuario)",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Categorías obtenidas.",
-                "data": {
-                  "categories": [
-                    {
-                      "category_id": "550e8400-e29b-41d4-a716-446655440010",
-                      "user_id": null,
-                      "name": "Entretenimiento",
-                      "icon_url": "🎬",
-                      "color_hex": "#FF5733",
-                      "is_global": true,
-                      "updated_at": "2026-02-28T10:30:00.000Z"
-                    },
-                    {
-                      "category_id": "550e8400-e29b-41d4-a716-446655440011",
-                      "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                      "name": "Mi Categoría",
-                      "icon_url": "🎯",
-                      "color_hex": "#00FF00",
-                      "is_global": false,
-                      "updated_at": "2026-02-28T10:30:00.000Z"
-                    }
-                  ]
-                }
-              }
-            }
+      },
+      "update": {
+        "method": "PATCH",
+        "path": "/api/v1/expenses/:id",
+        "authentication": true,
+        "description": "Actualizar gasto existente",
+        "request": {
+          "body": {
+            "name": "Café Starbucks Grande",
+            "amount": 75.00
           }
         },
-        {
-          "name": "Get Global Categories",
-          "method": "GET",
-          "path": "/api/v1/categories/global",
-          "authentication": true,
-          "description": "Obtener solo categorías globales del sistema",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Categorías globales obtenidas.",
-                "data": {
-                  "categories": [
-                    {
-                      "category_id": "550e8400-e29b-41d4-a716-446655440010",
-                      "user_id": null,
-                      "name": "Entretenimiento",
-                      "icon_url": "🎬",
-                      "color_hex": "#FF5733",
-                      "is_global": true,
-                      "updated_at": "2026-02-28T10:30:00.000Z"
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Get Category by ID",
-          "method": "GET",
-          "path": "/api/v1/categories/:id",
-          "authentication": true,
-          "description": "Obtener categoría específica por ID",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440010"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Categoría obtenida.",
-                "data": {
-                  "category": {
-                    "category_id": "550e8400-e29b-41d4-a716-446655440010",
-                    "user_id": null,
-                    "name": "Entretenimiento",
-                    "icon_url": "🎬",
-                    "color_hex": "#FF5733",
-                    "is_global": true,
-                    "updated_at": "2026-02-28T10:30:00.000Z"
-                  }
-                }
-              }
-            },
-            "error": {
-              "status": 404,
-              "body": {
-                "success": false,
-                "message": "Categoría no encontrada."
-              }
-            }
-          }
-        },
-        {
-          "name": "Create Category",
-          "method": "POST",
-          "path": "/api/v1/categories",
-          "authentication": true,
-          "description": "Crear nueva categoría personalizada",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}",
-              "Content-Type": "application/json"
-            },
-            "body": {
-              "name": "Mi Categoría",
-              "icon_url": "🎯",
-              "color_hex": "#00FF00"
-            },
-            "validation": {
-              "name": "Required, max 50 characters",
-              "icon_url": "Optional, string",
-              "color_hex": "Optional, format #RRGGBB"
-            }
-          },
-          "response": {
-            "success": {
-              "status": 201,
-              "body": {
-                "success": true,
-                "message": "Categoría creada.",
-                "data": {
-                  "category": {
-                    "category_id": "550e8400-e29b-41d4-a716-446655440011",
-                    "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                    "name": "Mi Categoría",
-                    "icon_url": "🎯",
-                    "color_hex": "#00FF00",
-                    "is_global": false,
-                    "updated_at": "2026-02-28T10:30:00.000Z"
-                  }
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Update Category",
-          "method": "PATCH",
-          "path": "/api/v1/categories/:id",
-          "authentication": true,
-          "description": "Actualizar categoría personalizada",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}",
-              "Content-Type": "application/json"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440011"
-            },
-            "body": {
-              "name": "Mi Categoría Actualizada",
-              "icon_url": "🎪",
-              "color_hex": "#FF00FF"
-            },
-            "validation": {
-              "name": "Optional, 1-50 characters",
-              "icon_url": "Optional, string",
-              "color_hex": "Optional, format #RRGGBB"
-            }
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Categoría actualizada.",
-                "data": {
-                  "category": {
-                    "category_id": "550e8400-e29b-41d4-a716-446655440011",
-                    "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                    "name": "Mi Categoría Actualizada",
-                    "icon_url": "🎪",
-                    "color_hex": "#FF00FF",
-                    "is_global": false,
-                    "updated_at": "2026-02-28T11:00:00.000Z"
-                  }
-                }
-              }
-            },
-            "error": {
-              "status": 403,
-              "body": {
-                "success": false,
-                "message": "No puedes modificar una categoría global."
-              }
-            }
-          }
-        },
-        {
-          "name": "Delete Category",
-          "method": "DELETE",
-          "path": "/api/v1/categories/:id",
-          "authentication": true,
-          "description": "Eliminar categoría personalizada (soft delete)",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440011"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Categoría eliminada."
-              }
-            },
-            "error": {
-              "status": 403,
-              "body": {
-                "success": false,
-                "message": "No puedes eliminar una categoría global."
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Gasto actualizado.",
+            "data": {
+              "expense": {
+                "id": "65f8b3c5d2a1e4f7g8h9i0j2",
+                "name": "Café Starbucks Grande",
+                "amount": 75
               }
             }
           }
         }
-      ]
+      },
+      "delete": {
+        "method": "DELETE",
+        "path": "/api/v1/expenses/:id",
+        "authentication": true,
+        "description": "Eliminar gasto",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Gasto eliminado."
+          }
+        }
+      }
     },
-    {
-      "module": "Cards",
-      "description": "Gestión de tarjetas de crédito/débito del usuario",
-      "endpoints": [
-        {
-          "name": "Get All Cards",
-          "method": "GET",
-          "path": "/api/v1/cards",
-          "authentication": true,
-          "description": "Obtener todas las tarjetas del usuario",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Tarjetas obtenidas.",
-                "data": {
-                  "cards": [
-                    {
-                      "card_id": "550e8400-e29b-41d4-a716-446655440020",
-                      "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                      "bank_name": "BBVA México",
-                      "alias": "Tarjeta Principal",
-                      "last_4_digits": "4321",
-                      "color_hex": "#004481",
-                      "is_default": true,
-                      "updated_at": "2026-02-28T10:30:00.000Z"
-                    }
-                  ]
+    "banks": {
+      "get_global": {
+        "method": "GET",
+        "path": "/api/v1/banks/global",
+        "authentication": true,
+        "description": "Obtener solo bancos globales del sistema",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Bancos globales obtenidos.",
+            "data": {
+              "banks": [
+                {
+                  "bank_id": "950e8400-e29b-41d4-a716-446655440005",
+                  "user_id": null,
+                  "name": "BBVA México",
+                  "is_global": true,
+                  "updated_at": "2026-01-01T00:00:00.000Z"
                 }
-              }
+              ]
             }
           }
-        },
-        {
-          "name": "Get Card by ID",
-          "method": "GET",
-          "path": "/api/v1/cards/:id",
-          "authentication": true,
-          "description": "Obtener tarjeta específica por ID",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440020"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Tarjeta obtenida.",
-                "data": {
-                  "card": {
-                    "card_id": "550e8400-e29b-41d4-a716-446655440020",
-                    "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                    "bank_name": "BBVA México",
-                    "alias": "Tarjeta Principal",
-                    "last_4_digits": "4321",
-                    "color_hex": "#004481",
-                    "is_default": true,
-                    "updated_at": "2026-02-28T10:30:00.000Z"
-                  }
+        }
+      },
+      "get_all": {
+        "method": "GET",
+        "path": "/api/v1/banks",
+        "authentication": true,
+        "description": "Obtener bancos globales + personalizados del usuario",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Bancos obtenidos.",
+            "data": {
+              "banks": [
+                {
+                  "bank_id": "950e8400-e29b-41d4-a716-446655440005",
+                  "user_id": null,
+                  "name": "BBVA México",
+                  "is_global": true,
+                  "updated_at": "2026-01-01T00:00:00.000Z"
+                },
+                {
+                  "bank_id": "a50e8400-e29b-41d4-a716-446655440006",
+                  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "name": "Mi Banco Local",
+                  "is_global": false,
+                  "updated_at": "2026-02-15T10:30:00.000Z"
                 }
-              }
-            },
-            "error": {
-              "status": 404,
-              "body": {
-                "success": false,
-                "message": "Tarjeta no encontrada."
-              }
+              ]
             }
           }
-        },
-        {
-          "name": "Create Card",
-          "method": "POST",
-          "path": "/api/v1/cards",
-          "authentication": true,
-          "description": "Crear nueva tarjeta",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}",
-              "Content-Type": "application/json"
-            },
-            "body": {
-              "bank_name": "BBVA México",
-              "alias": "Tarjeta Principal",
-              "last_4_digits": "4321",
-              "color_hex": "#004481",
-              "is_default": false
-            },
-            "validation": {
-              "bank_name": "Required, max 100 characters",
-              "alias": "Required, max 50 characters",
-              "last_4_digits": "Optional, exactly 4 digits",
-              "color_hex": "Optional, format #RRGGBB",
-              "is_default": "Optional, boolean"
-            }
+        }
+      },
+      "create": {
+        "method": "POST",
+        "path": "/api/v1/banks",
+        "authentication": true,
+        "description": "Crear banco personalizado",
+        "request": {
+          "body": {
+            "name": "Caja de Ahorros Local"
           },
-          "response": {
-            "success": {
-              "status": 201,
-              "body": {
-                "success": true,
-                "message": "Tarjeta creada.",
-                "data": {
-                  "card": {
-                    "card_id": "550e8400-e29b-41d4-a716-446655440020",
-                    "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                    "bank_name": "BBVA México",
-                    "alias": "Tarjeta Principal",
-                    "last_4_digits": "4321",
-                    "color_hex": "#004481",
-                    "is_default": false,
-                    "updated_at": "2026-02-28T10:30:00.000Z"
-                  }
-                }
-              }
-            }
+          "validation": {
+            "name": "Required, max 100 chars"
           }
         },
-        {
-          "name": "Update Card",
-          "method": "PATCH",
-          "path": "/api/v1/cards/:id",
-          "authentication": true,
-          "description": "Actualizar tarjeta existente",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}",
-              "Content-Type": "application/json"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440020"
-            },
-            "body": {
-              "alias": "Tarjeta Secundaria",
-              "color_hex": "#FF5733"
-            },
-            "validation": {
-              "bank_name": "Optional, max 100 characters",
-              "alias": "Optional, max 50 characters",
-              "last_4_digits": "Optional, exactly 4 digits",
-              "color_hex": "Optional, format #RRGGBB",
-              "is_default": "Optional, boolean"
-            }
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Tarjeta actualizada.",
-                "data": {
-                  "card": {
-                    "card_id": "550e8400-e29b-41d4-a716-446655440020",
-                    "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                    "bank_name": "BBVA México",
-                    "alias": "Tarjeta Secundaria",
-                    "last_4_digits": "4321",
-                    "color_hex": "#FF5733",
-                    "is_default": false,
-                    "updated_at": "2026-02-28T11:00:00.000Z"
-                  }
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Set Card as Default",
-          "method": "PATCH",
-          "path": "/api/v1/cards/:id/default",
-          "authentication": true,
-          "description": "Establecer tarjeta como predeterminada",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440020"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Tarjeta establecida como predeterminada.",
-                "data": {
-                  "card": {
-                    "card_id": "550e8400-e29b-41d4-a716-446655440020",
-                    "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                    "bank_name": "BBVA México",
-                    "alias": "Tarjeta Principal",
-                    "last_4_digits": "4321",
-                    "color_hex": "#004481",
-                    "is_default": true,
-                    "updated_at": "2026-02-28T11:00:00.000Z"
-                  }
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Delete Card",
-          "method": "DELETE",
-          "path": "/api/v1/cards/:id",
-          "authentication": true,
-          "description": "Eliminar tarjeta",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440020"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Tarjeta eliminada."
+        "response_success": {
+          "status": 201,
+          "body": {
+            "success": true,
+            "message": "Banco creado.",
+            "data": {
+              "bank": {
+                "bank_id": "b50e8400-e29b-41d4-a716-446655440007",
+                "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                "name": "Caja de Ahorros Local",
+                "is_global": false,
+                "updated_at": "2026-03-02T10:30:00.000Z"
               }
             }
           }
         }
-      ]
+      },
+      "update": {
+        "method": "PATCH",
+        "path": "/api/v1/banks/:id",
+        "authentication": true,
+        "description": "Actualizar banco personalizado (solo los creados por el usuario)",
+        "request": {
+          "body": {
+            "name": "Caja de Ahorros Regional"
+          }
+        },
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Banco actualizado.",
+            "data": {
+              "bank": {
+                "bank_id": "b50e8400-e29b-41d4-a716-446655440007",
+                "name": "Caja de Ahorros Regional"
+              }
+            }
+          }
+        },
+        "response_errors": [
+          {
+            "status": 403,
+            "body": {
+              "success": false,
+              "message": "No tienes permiso para modificar este banco."
+            }
+          }
+        ]
+      },
+      "delete": {
+        "method": "DELETE",
+        "path": "/api/v1/banks/:id",
+        "authentication": true,
+        "description": "Eliminar banco personalizado",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Banco eliminado."
+          }
+        }
+      }
     },
-    {
-      "module": "Subscriptions",
-      "description": "Gestión de suscripciones recurrentes",
-      "endpoints": [
-        {
-          "name": "Get Billing Cycles",
-          "method": "GET",
-          "path": "/api/v1/subscriptions/billing-cycles",
-          "authentication": true,
-          "description": "Obtener lista de ciclos de facturación disponibles",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Ciclos de facturación.",
-                "data": {
-                  "billing_cycles": [
-                    {
-                      "id": 1,
-                      "name": "Semanal"
-                    },
-                    {
-                      "id": 2,
-                      "name": "Quincenal"
-                    },
-                    {
-                      "id": 3,
-                      "name": "Mensual"
-                    },
-                    {
-                      "id": 4,
-                      "name": "Trimestral"
-                    },
-                    {
-                      "id": 5,
-                      "name": "Semestral"
-                    },
-                    {
-                      "id": 6,
-                      "name": "Anual"
-                    }
-                  ]
+    "categories": {
+      "get_global": {
+        "method": "GET",
+        "path": "/api/v1/categories/global",
+        "authentication": true,
+        "description": "Obtener solo categorías globales del sistema",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Categorías globales obtenidas.",
+            "data": {
+              "categories": [
+                {
+                  "category_id": "750e8400-e29b-41d4-a716-446655440002",
+                  "user_id": null,
+                  "name": "Entretenimiento",
+                  "icon_url": "https://example.com/entertainment.png",
+                  "color_hex": "#E53935",
+                  "is_global": true,
+                  "updated_at": "2026-01-01T00:00:00.000Z"
                 }
-              }
+              ]
             }
           }
-        },
-        {
-          "name": "Get Subscriptions Metrics",
-          "method": "GET",
-          "path": "/api/v1/subscriptions/metrics",
-          "authentication": true,
-          "description": "Obtener métricas y estadísticas de suscripciones",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Métricas de suscripciones.",
-                "data": {
-                  "metrics": {
-                    "total_subscriptions": 5,
-                    "active_subscriptions": 4,
-                    "total_monthly_cost": 1250.50,
-                    "total_annual_cost": 15006.00,
-                    "upcoming_payments": 2,
-                    "by_category": [
-                      {
-                        "category_name": "Entretenimiento",
-                        "count": 3,
-                        "total_amount": 750.00
-                      },
-                      {
-                        "category_name": "Productividad",
-                        "count": 1,
-                        "total_amount": 500.50
-                      }
-                    ]
-                  }
+        }
+      },
+      "get_all": {
+        "method": "GET",
+        "path": "/api/v1/categories",
+        "authentication": true,
+        "description": "Obtener categorías globales + personalizadas",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Categorías obtenidas.",
+            "data": {
+              "categories": [
+                {
+                  "category_id": "750e8400-e29b-41d4-a716-446655440002",
+                  "user_id": null,
+                  "name": "Entretenimiento",
+                  "icon_url": "https://example.com/entertainment.png",
+                  "color_hex": "#E53935",
+                  "is_global": true,
+                  "updated_at": "2026-01-01T00:00:00.000Z"
+                },
+                {
+                  "category_id": "c50e8400-e29b-41d4-a716-446655440008",
+                  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "name": "Mascotas",
+                  "icon_url": null,
+                  "color_hex": "#8BC34A",
+                  "is_global": false,
+                  "updated_at": "2026-02-20T15:00:00.000Z"
                 }
-              }
+              ]
             }
           }
-        },
-        {
-          "name": "Get All Subscriptions",
-          "method": "GET",
-          "path": "/api/v1/subscriptions",
-          "authentication": true,
-          "description": "Obtener todas las suscripciones del usuario",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
+        }
+      },
+      "create": {
+        "method": "POST",
+        "path": "/api/v1/categories",
+        "authentication": true,
+        "description": "Crear categoría personalizada",
+        "request": {
+          "body": {
+            "name": "Hobbies",
+            "icon_url": "https://example.com/hobby.png",
+            "color_hex": "#9C27B0"
           },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Suscripciones obtenidas.",
-                "data": {
-                  "subscriptions": [
-                    {
-                      "subscription_id": "550e8400-e29b-41d4-a716-446655440030",
-                      "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                      "service_name": "Netflix",
-                      "amount": 299.00,
-                      "next_payment_date": "2026-03-15",
-                      "category_name": "Entretenimiento",
-                      "category_icon": "🎬",
-                      "category_color": "#FF5733",
-                      "billing_cycle": "Mensual",
-                      "card_alias": "Tarjeta Principal",
-                      "card_last_digits": "4321",
-                      "days_until_payment": 15
-                    }
-                  ]
-                }
-              }
-            }
+          "validation": {
+            "name": "Required, max 50 chars",
+            "icon_url": "Optional, string",
+            "color_hex": "Optional, format #RRGGBB"
           }
         },
-        {
-          "name": "Get Subscription by ID",
-          "method": "GET",
-          "path": "/api/v1/subscriptions/:id",
-          "authentication": true,
-          "description": "Obtener suscripción específica por ID",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440030"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Suscripción obtenida.",
-                "data": {
-                  "subscription": {
-                    "subscription_id": "550e8400-e29b-41d4-a716-446655440030",
-                    "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                    "service_name": "Netflix",
-                    "amount": 299.00,
-                    "next_payment_date": "2026-03-15",
-                    "category_name": "Entretenimiento",
-                    "category_icon": "🎬",
-                    "category_color": "#FF5733",
-                    "billing_cycle": "Mensual",
-                    "card_alias": "Tarjeta Principal",
-                    "card_last_digits": "4321",
-                    "days_until_payment": 15
-                  }
-                }
-              }
-            },
-            "error": {
-              "status": 404,
-              "body": {
-                "success": false,
-                "message": "Suscripción no encontrada."
-              }
-            }
-          }
-        },
-        {
-          "name": "Create Subscription",
-          "method": "POST",
-          "path": "/api/v1/subscriptions",
-          "authentication": true,
-          "description": "Crear nueva suscripción",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}",
-              "Content-Type": "application/json"
-            },
-            "body": {
-              "service_name": "Netflix",
-              "amount": 299.00,
-              "next_payment_date": "2026-03-15",
-              "billing_cycle_id": 3,
-              "category_id": "550e8400-e29b-41d4-a716-446655440010",
-              "used_card_id": "550e8400-e29b-41d4-a716-446655440020"
-            },
-            "validation": {
-              "service_name": "Required, max 100 characters",
-              "amount": "Required, > 0",
-              "next_payment_date": "Required, format YYYY-MM-DD",
-              "billing_cycle_id": "Required, integer > 0",
-              "category_id": "Required, UUID",
-              "used_card_id": "Optional, UUID"
-            }
-          },
-          "response": {
-            "success": {
-              "status": 201,
-              "body": {
-                "success": true,
-                "message": "Suscripción creada.",
-                "data": {
-                  "subscription": {
-                    "subscription_id": "550e8400-e29b-41d4-a716-446655440030",
-                    "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                    "service_name": "Netflix",
-                    "amount": 299.00,
-                    "next_payment_date": "2026-03-15",
-                    "category_name": "Entretenimiento",
-                    "category_icon": "🎬",
-                    "category_color": "#FF5733",
-                    "billing_cycle": "Mensual",
-                    "card_alias": "Tarjeta Principal",
-                    "card_last_digits": "4321",
-                    "days_until_payment": 15
-                  }
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Update Subscription",
-          "method": "PATCH",
-          "path": "/api/v1/subscriptions/:id",
-          "authentication": true,
-          "description": "Actualizar suscripción existente",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}",
-              "Content-Type": "application/json"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440030"
-            },
-            "body": {
-              "service_name": "Netflix Premium",
-              "amount": 349.00
-            },
-            "validation": {
-              "service_name": "Optional, max 100 characters",
-              "amount": "Optional, > 0",
-              "next_payment_date": "Optional, format YYYY-MM-DD",
-              "billing_cycle_id": "Optional, integer > 0",
-              "category_id": "Optional, UUID",
-              "used_card_id": "Optional, UUID"
-            }
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Suscripción actualizada.",
-                "data": {
-                  "subscription": {
-                    "subscription_id": "550e8400-e29b-41d4-a716-446655440030",
-                    "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                    "service_name": "Netflix Premium",
-                    "amount": 349.00,
-                    "next_payment_date": "2026-03-15",
-                    "category_name": "Entretenimiento",
-                    "category_icon": "🎬",
-                    "category_color": "#FF5733",
-                    "billing_cycle": "Mensual",
-                    "card_alias": "Tarjeta Principal",
-                    "card_last_digits": "4321",
-                    "days_until_payment": 15
-                  }
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Delete Subscription",
-          "method": "DELETE",
-          "path": "/api/v1/subscriptions/:id",
-          "authentication": true,
-          "description": "Eliminar suscripción (soft delete)",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440030"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Suscripción eliminada."
+        "response_success": {
+          "status": 201,
+          "body": {
+            "success": true,
+            "message": "Categoría creada.",
+            "data": {
+              "category": {
+                "category_id": "d50e8400-e29b-41d4-a716-446655440009",
+                "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                "name": "Hobbies",
+                "icon_url": "https://example.com/hobby.png",
+                "color_hex": "#9C27B0",
+                "is_global": false,
+                "updated_at": "2026-03-02T11:00:00.000Z"
               }
             }
           }
         }
-      ]
-    },
-    {
-      "module": "Expenses",
-      "description": "Gestión de gastos",
-      "endpoints": [
-        {
-          "name": "Get Expenses Summary",
-          "method": "GET",
-          "path": "/api/v1/expenses/summary",
-          "authentication": true,
-          "description": "Obtener resumen de gastos por mes",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "queryParams": {
-              "month": "2",
-              "year": "2026"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Resumen de gastos.",
-                "data": {
-                  "summary": {
-                    "total_expenses": 5,
-                    "total_amount": 5432.50,
-                    "by_category": [
-                      {
-                        "category_name": "Comida",
-                        "category_color": "#FF5733",
-                        "count": 3,
-                        "total_amount": 3200.00
-                      },
-                      {
-                        "category_name": "Transporte",
-                        "category_color": "#33C3FF",
-                        "count": 2,
-                        "total_amount": 2232.50
-                      }
-                    ],
-                    "month": 2,
-                    "year": 2026
-                  }
-                }
-              }
-            }
+      },
+      "update": {
+        "method": "PATCH",
+        "path": "/api/v1/categories/:id",
+        "authentication": true,
+        "description": "Actualizar categoría personalizada",
+        "request": {
+          "body": {
+            "name": "Hobbies y Pasatiempos",
+            "color_hex": "#673AB7"
           }
         },
-        {
-          "name": "Get All Expenses",
-          "method": "GET",
-          "path": "/api/v1/expenses",
-          "authentication": true,
-          "description": "Obtener todos los gastos del usuario",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Gastos obtenidos.",
-                "data": {
-                  "expenses": [
-                    {
-                      "id": "550e8400-e29b-41d4-a716-446655440040",
-                      "userId": "550e8400-e29b-41d4-a716-446655440000",
-                      "categoryId": "550e8400-e29b-41d4-a716-446655440010",
-                      "categoryName": "Comida",
-                      "categoryColor": "#FF5733",
-                      "name": "Supermercado",
-                      "amount": 1250.50,
-                      "expenseDate": "2026-02-25",
-                      "createdAt": "2026-02-25T15:30:00.000Z"
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Get Expense by ID",
-          "method": "GET",
-          "path": "/api/v1/expenses/:id",
-          "authentication": true,
-          "description": "Obtener gasto específico por ID",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440040"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Gasto obtenido.",
-                "data": {
-                  "expense": {
-                    "id": "550e8400-e29b-41d4-a716-446655440040",
-                    "userId": "550e8400-e29b-41d4-a716-446655440000",
-                    "categoryId": "550e8400-e29b-41d4-a716-446655440010",
-                    "categoryName": "Comida",
-                    "categoryColor": "#FF5733",
-                    "name": "Supermercado",
-                    "amount": 1250.50,
-                    "expenseDate": "2026-02-25",
-                    "createdAt": "2026-02-25T15:30:00.000Z"
-                  }
-                }
-              }
-            },
-            "error": {
-              "status": 404,
-              "body": {
-                "success": false,
-                "message": "Gasto no encontrado."
-              }
-            }
-          }
-        },
-        {
-          "name": "Create Expense",
-          "method": "POST",
-          "path": "/api/v1/expenses",
-          "authentication": true,
-          "description": "Registrar nuevo gasto",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}",
-              "Content-Type": "application/json"
-            },
-            "body": {
-              "name": "Supermercado",
-              "amount": 1250.50,
-              "expense_date": "2026-02-25",
-              "category_id": "550e8400-e29b-41d4-a716-446655440010"
-            },
-            "validation": {
-              "name": "Required, max 255 characters",
-              "amount": "Required, > 0",
-              "expense_date": "Required, format YYYY-MM-DD",
-              "category_id": "Required, UUID"
-            }
-          },
-          "response": {
-            "success": {
-              "status": 201,
-              "body": {
-                "success": true,
-                "message": "Gasto registrado.",
-                "data": {
-                  "expense": {
-                    "id": "550e8400-e29b-41d4-a716-446655440040",
-                    "userId": "550e8400-e29b-41d4-a716-446655440000",
-                    "categoryId": "550e8400-e29b-41d4-a716-446655440010",
-                    "categoryName": "Comida",
-                    "categoryColor": "#FF5733",
-                    "name": "Supermercado",
-                    "amount": 1250.50,
-                    "expenseDate": "2026-02-25",
-                    "createdAt": "2026-02-25T15:30:00.000Z"
-                  }
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Update Expense",
-          "method": "PATCH",
-          "path": "/api/v1/expenses/:id",
-          "authentication": true,
-          "description": "Actualizar gasto existente",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}",
-              "Content-Type": "application/json"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440040"
-            },
-            "body": {
-              "name": "Supermercado Walmart",
-              "amount": 1350.75
-            },
-            "validation": {
-              "name": "Optional, max 255 characters",
-              "amount": "Optional, > 0",
-              "expense_date": "Optional, format YYYY-MM-DD",
-              "category_id": "Optional, UUID"
-            }
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Gasto actualizado.",
-                "data": {
-                  "expense": {
-                    "id": "550e8400-e29b-41d4-a716-446655440040",
-                    "userId": "550e8400-e29b-41d4-a716-446655440000",
-                    "categoryId": "550e8400-e29b-41d4-a716-446655440010",
-                    "categoryName": "Comida",
-                    "categoryColor": "#FF5733",
-                    "name": "Supermercado Walmart",
-                    "amount": 1350.75,
-                    "expenseDate": "2026-02-25",
-                    "createdAt": "2026-02-25T15:30:00.000Z"
-                  }
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Delete Expense",
-          "method": "DELETE",
-          "path": "/api/v1/expenses/:id",
-          "authentication": true,
-          "description": "Eliminar gasto",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440040"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Gasto eliminado."
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Categoría actualizada.",
+            "data": {
+              "category": {
+                "category_id": "d50e8400-e29b-41d4-a716-446655440009",
+                "name": "Hobbies y Pasatiempos",
+                "color_hex": "#673AB7"
               }
             }
           }
         }
-      ]
+      },
+      "delete": {
+        "method": "DELETE",
+        "path": "/api/v1/categories/:id",
+        "authentication": true,
+        "description": "Eliminar categoría personalizada",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Categoría eliminada."
+          }
+        }
+      }
     },
-    {
-      "module": "User Preferences",
-      "description": "Gestión de preferencias de tema e idioma",
-      "endpoints": [
-        {
-          "name": "Get User Preferences",
-          "method": "GET",
-          "path": "/api/v1/preferences",
-          "authentication": true,
-          "description": "Obtener preferencias del usuario autenticado",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Preferencias obtenidas correctamente",
-                "data": {
-                  "theme": "dark",
-                  "language": "es"
+    "cards": {
+      "get_all": {
+        "method": "GET",
+        "path": "/api/v1/cards",
+        "authentication": true,
+        "description": "Obtener todas las tarjetas del usuario",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Tarjetas obtenidas.",
+            "data": {
+              "cards": [
+                {
+                  "card_id": "850e8400-e29b-41d4-a716-446655440003",
+                  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "bank_name": "BBVA México",
+                  "alias": "Visa Principal",
+                  "last_4_digits": "1234",
+                  "color_hex": "#1E88E5",
+                  "is_default": true,
+                  "updated_at": "2026-02-10T09:00:00.000Z"
                 }
+              ]
+            }
+          }
+        }
+      },
+      "create": {
+        "method": "POST",
+        "path": "/api/v1/cards",
+        "authentication": true,
+        "description": "Crear nueva tarjeta",
+        "request": {
+          "body": {
+            "bank_name": "Santander",
+            "alias": "Mastercard Oro",
+            "last_4_digits": "5678",
+            "color_hex": "#E53935",
+            "is_default": false
+          },
+          "validation": {
+            "bank_name": "Required, max 100 chars",
+            "alias": "Required, max 50 chars",
+            "last_4_digits": "Optional, exactly 4 digits",
+            "color_hex": "Optional, format #RRGGBB",
+            "is_default": "Optional, boolean"
+          }
+        },
+        "response_success": {
+          "status": 201,
+          "body": {
+            "success": true,
+            "message": "Tarjeta creada.",
+            "data": {
+              "card": {
+                "card_id": "e50e8400-e29b-41d4-a716-446655440010",
+                "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                "bank_name": "Santander",
+                "alias": "Mastercard Oro",
+                "last_4_digits": "5678",
+                "color_hex": "#E53935",
+                "is_default": false,
+                "updated_at": "2026-03-02T11:30:00.000Z"
               }
             }
           }
+        }
+      },
+      "set_default": {
+        "method": "PATCH",
+        "path": "/api/v1/cards/:id/default",
+        "authentication": true,
+        "description": "Establecer tarjeta como predeterminada",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Tarjeta establecida como predeterminada.",
+            "data": {
+              "card": {
+                "card_id": "e50e8400-e29b-41d4-a716-446655440010",
+                "is_default": true
+              }
+            }
+          }
+        }
+      },
+      "update": {
+        "method": "PATCH",
+        "path": "/api/v1/cards/:id",
+        "authentication": true,
+        "description": "Actualizar tarjeta",
+        "request": {
+          "body": {
+            "alias": "Mastercard Premium",
+            "color_hex": "#C62828"
+          }
         },
-        {
-          "name": "Update User Preferences",
-          "method": "PATCH",
-          "path": "/api/v1/preferences",
-          "authentication": true,
-          "description": "Actualizar preferencias del usuario",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}",
-              "Content-Type": "application/json"
-            },
-            "body": {
-              "theme": "light",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Tarjeta actualizada.",
+            "data": {
+              "card": {
+                "card_id": "e50e8400-e29b-41d4-a716-446655440010",
+                "alias": "Mastercard Premium",
+                "color_hex": "#C62828"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "method": "DELETE",
+        "path": "/api/v1/cards/:id",
+        "authentication": true,
+        "description": "Eliminar tarjeta",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Tarjeta eliminada."
+          }
+        }
+      }
+    },
+    "preferences": {
+      "get": {
+        "method": "GET",
+        "path": "/api/v1/preferences",
+        "authentication": true,
+        "description": "Obtener preferencias del usuario",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Preferencias obtenidas correctamente",
+            "data": {
+              "theme": "system",
+              "language": "es"
+            }
+          }
+        }
+      },
+      "update": {
+        "method": "PATCH",
+        "path": "/api/v1/preferences",
+        "authentication": true,
+        "description": "Actualizar preferencias del usuario",
+        "request": {
+          "body": {
+            "theme": "dark",
+            "language": "en"
+          },
+          "validation": {
+            "theme": "Optional, values: 'system' | 'light' | 'dark'",
+            "language": "Optional, values: 'es' | 'en'"
+          }
+        },
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Preferencias actualizadas correctamente",
+            "data": {
+              "theme": "dark",
               "language": "en"
-            },
-            "validation": {
-              "theme": "Optional, values: 'system' | 'light' | 'dark'",
-              "language": "Optional, values: 'es' | 'en'"
-            }
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Preferencias actualizadas correctamente",
-                "data": {
-                  "theme": "light",
-                  "language": "en"
-                }
-              }
             }
           }
         }
-      ]
+      }
     },
-    {
-      "module": "Notification Settings",
-      "description": "Configuración de notificaciones del usuario",
-      "endpoints": [
-        {
-          "name": "Get Notification Settings",
-          "method": "GET",
-          "path": "/api/v1/notifications/settings",
-          "authentication": true,
-          "description": "Obtener configuración de notificaciones del usuario",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Configuración de notificaciones obtenida correctamente",
-                "data": {
-                  "email_enabled": true,
-                  "push_enabled": false,
-                  "subscription_reminders": true,
-                  "days_before_notice": 7
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Update Notification Settings",
-          "method": "PATCH",
-          "path": "/api/v1/notifications/settings",
-          "authentication": true,
-          "description": "Actualizar configuración de notificaciones",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}",
-              "Content-Type": "application/json"
-            },
-            "body": {
-              "email_enabled": false,
+    "notification_settings": {
+      "get": {
+        "method": "GET",
+        "path": "/api/v1/notifications/settings",
+        "authentication": true,
+        "description": "Obtener configuración de notificaciones",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Configuración de notificaciones obtenida correctamente",
+            "data": {
+              "email_enabled": true,
               "push_enabled": true,
               "subscription_reminders": true,
               "days_before_notice": 3
-            },
-            "validation": {
-              "email_enabled": "Optional, boolean",
-              "push_enabled": "Optional, boolean",
-              "subscription_reminders": "Optional, boolean",
-              "days_before_notice": "Optional, integer 0-30"
             }
+          }
+        }
+      },
+      "update": {
+        "method": "PATCH",
+        "path": "/api/v1/notifications/settings",
+        "authentication": true,
+        "description": "Actualizar configuración de notificaciones",
+        "request": {
+          "body": {
+            "email_enabled": false,
+            "push_enabled": true,
+            "subscription_reminders": true,
+            "days_before_notice": 5
           },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Configuración de notificaciones actualizada correctamente",
-                "data": {
-                  "email_enabled": false,
-                  "push_enabled": true,
-                  "subscription_reminders": true,
-                  "days_before_notice": 3
+          "validation": {
+            "email_enabled": "Optional, boolean",
+            "push_enabled": "Optional, boolean",
+            "subscription_reminders": "Optional, boolean",
+            "days_before_notice": "Optional, integer 0-30"
+          }
+        },
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Configuración de notificaciones actualizada correctamente",
+            "data": {
+              "email_enabled": false,
+              "push_enabled": true,
+              "subscription_reminders": true,
+              "days_before_notice": 5
+            }
+          }
+        }
+      }
+    },
+    "notifications": {
+      "get_summary": {
+        "method": "GET",
+        "path": "/api/v1/notifications/summary",
+        "authentication": true,
+        "description": "Obtener resumen de notificaciones",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Resumen de notificaciones.",
+            "data": {
+              "summary": {
+                "total": 15,
+                "unread": 8,
+                "highPriority": 3,
+                "byType": {
+                  "upcoming_charge": 10,
+                  "budget_limit": 3,
+                  "ant_expense": 2
                 }
               }
             }
           }
         }
-      ]
-    },
-    {
-      "module": "Notifications",
-      "description": "Gestión de notificaciones del usuario",
-      "endpoints": [
-        {
-          "name": "Get Notifications Summary",
-          "method": "GET",
-          "path": "/api/v1/notifications/summary",
-          "authentication": true,
-          "description": "Obtener resumen de notificaciones",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Resumen de notificaciones.",
-                "data": {
-                  "summary": {
-                    "total": 10,
-                    "unread": 3,
-                    "highPriority": 1,
-                    "byType": {
-                      "upcoming_charge": 5,
-                      "budget_limit": 3,
-                      "ant_expense": 2
-                    }
-                  }
+      },
+      "get_all": {
+        "method": "GET",
+        "path": "/api/v1/notifications",
+        "authentication": true,
+        "description": "Obtener notificaciones con filtros opcionales",
+        "query_params": {
+          "isRead": "Optional, boolean (true | false)",
+          "type": "Optional, 'upcoming_charge' | 'budget_limit' | 'ant_expense' | 'subscription_renewal'"
+        },
+        "example": "/api/v1/notifications?isRead=false&type=upcoming_charge",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Notificaciones obtenidas.",
+            "data": {
+              "notifications": [
+                {
+                  "id": "65f8b3c5d2a1e4f7g8h9i0j3",
+                  "userId": "550e8400-e29b-41d4-a716-446655440000",
+                  "type": "upcoming_charge",
+                  "priority": "high",
+                  "title": "🔴 Cargo mañana: Netflix",
+                  "message": "🔴 MAÑANA se cobrará Netflix ($199.00 MXN).",
+                  "isRead": false,
+                  "subscriptionId": "650e8400-e29b-41d4-a716-446655440001",
+                  "metadata": {
+                    "amount": 199,
+                    "daysUntilPayment": 1,
+                    "nextPaymentDate": "2026-03-03",
+                    "serviceName": "Netflix"
+                  },
+                  "createdAt": "2026-03-02T08:00:00.000Z"
                 }
-              }
-            }
-          }
-        },
-        {
-          "name": "Get All Notifications",
-          "method": "GET",
-          "path": "/api/v1/notifications",
-          "authentication": true,
-          "description": "Obtener todas las notificaciones con filtros opcionales",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "queryParams": {
-              "isRead": "false",
-              "type": "upcoming_charge"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Notificaciones obtenidas.",
-                "data": {
-                  "notifications": [
-                    {
-                      "id": "550e8400-e29b-41d4-a716-446655440050",
-                      "userId": "550e8400-e29b-41d4-a716-446655440000",
-                      "type": "upcoming_charge",
-                      "priority": "high",
-                      "title": "Próximo cobro de Netflix",
-                      "message": "Tu suscripción a Netflix será cobrada en 3 días",
-                      "isRead": false,
-                      "subscriptionId": "550e8400-e29b-41d4-a716-446655440030",
-                      "metadata": {
-                        "serviceName": "Netflix",
-                        "amount": 299.00
-                      },
-                      "createdAt": "2026-02-25T10:00:00.000Z"
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Mark Notification as Read",
-          "method": "PATCH",
-          "path": "/api/v1/notifications/:id/read",
-          "authentication": true,
-          "description": "Marcar notificación específica como leída",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440050"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Notificación marcada como leída."
-              }
-            },
-            "error": {
-              "status": 404,
-              "body": {
-                "success": false,
-                "message": "Notificación no encontrada."
-              }
-            }
-          }
-        },
-        {
-          "name": "Mark All Notifications as Read",
-          "method": "PATCH",
-          "path": "/api/v1/notifications/read-all",
-          "authentication": true,
-          "description": "Marcar todas las notificaciones como leídas",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "3 notificaciones marcadas como leídas.",
-                "data": {
-                  "updated": 3
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Delete Notification",
-          "method": "DELETE",
-          "path": "/api/v1/notifications/:id",
-          "authentication": true,
-          "description": "Eliminar notificación",
-          "request": {
-            "headers": {
-              "Authorization": "Bearer {accessToken}"
-            },
-            "pathParams": {
-              "id": "550e8400-e29b-41d4-a716-446655440050"
-            },
-            "body": null
-          },
-          "response": {
-            "success": {
-              "status": 200,
-              "body": {
-                "success": true,
-                "message": "Notificación eliminada."
-              }
-            },
-            "error": {
-              "status": 404,
-              "body": {
-                "success": false,
-                "message": "Notificación no encontrada."
-              }
+              ]
             }
           }
         }
-      ]
-    }
-  ],
-  "authentication": {
-    "type": "Bearer Token",
-    "header": "Authorization: Bearer {accessToken}",
-    "tokenExpiration": {
-      "accessToken": "15 minutes",
-      "refreshToken": "7 days"
+      },
+      "mark_as_read": {
+        "method": "PATCH",
+        "path": "/api/v1/notifications/:id/read",
+        "authentication": true,
+        "description": "Marcar una notificación como leída",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Notificación marcada como leída."
+          }
+        }
+      },
+      "mark_all_as_read": {
+        "method": "PATCH",
+        "path": "/api/v1/notifications/read-all",
+        "authentication": true,
+        "description": "Marcar todas las notificaciones como leídas",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "8 notificaciones marcadas como leídas.",
+            "data": {
+              "updated": 8
+            }
+          }
+        }
+      },
+      "delete": {
+        "method": "DELETE",
+        "path": "/api/v1/notifications/:id",
+        "authentication": true,
+        "description": "Eliminar notificación",
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Notificación eliminada."
+          }
+        }
+      }
     },
-    "cookies": {
-      "refreshToken": {
-        "name": "pg_refresh_token",
-        "httpOnly": true,
-        "secure": "production only",
-        "sameSite": "strict",
-        "maxAge": "7 days",
-        "path": "/api/v1/auth"
+    "device_tokens": {
+      "register": {
+        "method": "POST",
+        "path": "/api/v1/device-tokens",
+        "authentication": true,
+        "description": "Registrar token FCM para notificaciones push",
+        "request": {
+          "body": {
+            "fcmToken": "fY3r8X9s...actualFCMToken",
+            "platform": "android"
+          },
+          "validation": {
+            "fcmToken": "Required, string",
+            "platform": "Optional, default 'android'"
+          }
+        },
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Token registrado correctamente."
+          }
+        }
+      },
+      "remove": {
+        "method": "DELETE",
+        "path": "/api/v1/device-tokens",
+        "authentication": true,
+        "description": "Eliminar token FCM (llamar al cerrar sesión)",
+        "request": {
+          "body": {
+            "fcmToken": "fY3r8X9s...actualFCMToken"
+          }
+        },
+        "response_success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Token eliminado correctamente."
+          }
+        }
       }
     }
   },
-  "errorResponses": {
-    "400": {
-      "description": "Bad Request - Invalid data",
-      "example": {
+  "common_errors": {
+    "401_unauthorized": {
+      "status": 401,
+      "body": {
         "success": false,
-        "message": "Error al actualizar las preferencias"
+        "message": "Token inválido o expirado. Inicia sesión nuevamente."
+      },
+      "note": "Llamar a /api/v1/auth/refresh para renovar el token"
+    },
+    "403_forbidden": {
+      "status": 403,
+      "body": {
+        "success": false,
+        "message": "No tienes permiso para acceder a este recurso."
       }
     },
-    "401": {
-      "description": "Unauthorized - Invalid or missing token",
-      "example": {
+    "404_not_found": {
+      "status": 404,
+      "body": {
         "success": false,
-        "message": "Token no proporcionado o inválido."
+        "message": "Recurso no encontrado."
       }
     },
-    "403": {
-      "description": "Forbidden - Insufficient permissions",
-      "example": {
-        "success": false,
-        "message": "No puedes modificar un banco global."
-      }
-    },
-    "404": {
-      "description": "Not Found - Resource doesn't exist",
-      "example": {
-        "success": false,
-        "message": "Banco no encontrado."
-      }
-    },
-    "422": {
-      "description": "Unprocessable Entity - Validation errors",
-      "example": {
+    "422_validation_error": {
+      "status": 422,
+      "body": {
         "success": false,
         "message": "Error de validación. Revisa los campos enviados.",
         "errors": [
           {
             "field": "email",
-            "message": "El email es requerido."
+            "message": "Formato de email inválido."
           }
         ]
       }
     },
-    "500": {
-      "description": "Internal Server Error",
-      "example": {
+    "500_server_error": {
+      "status": 500,
+      "body": {
         "success": false,
         "message": "Error interno del servidor."
       }
     }
   },
-  "summary": {
-    "totalEndpoints": 50,
-    "byModule": {
-      "Health Check": 1,
-      "Authentication": 7,
-      "Banks": 6,
-      "Categories": 6,
-      "Cards": 6,
-      "Subscriptions": 7,
-      "Expenses": 6,
-      "User Preferences": 2,
-      "Notification Settings": 2,
-      "Notifications": 5
+  "data_types": {
+    "notification_types": [
+      "upcoming_charge",
+      "budget_limit",
+      "ant_expense",
+      "subscription_renewal"
+    ],
+    "notification_priorities": ["high", "medium", "low"],
+    "themes": ["system", "light", "dark"],
+    "languages": ["es", "en"],
+    "billing_cycles": {
+      "1": "Daily",
+      "2": "Weekly",
+      "3": "Monthly",
+      "4": "Yearly"
     }
   }
 }

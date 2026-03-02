@@ -29,7 +29,9 @@ class RegisterViewModel(
         val error = ValidationManager.validateEmail(email)
         _formState.value = _formState.value.copy(
             email = email,
-            emailError = error,
+            emailError = error
+        )
+        _formState.value = _formState.value.copy(
             isValid = validateForm()
         )
     }
@@ -45,7 +47,9 @@ class RegisterViewModel(
         _formState.value = _formState.value.copy(
             password = password,
             passwordError = error,
-            confirmPasswordError = confirmError,
+            confirmPasswordError = confirmError
+        )
+        _formState.value = _formState.value.copy(
             isValid = validateForm()
         )
     }
@@ -58,7 +62,9 @@ class RegisterViewModel(
 
         _formState.value = _formState.value.copy(
             confirmPassword = confirmPassword,
-            confirmPasswordError = error,
+            confirmPasswordError = error
+        )
+        _formState.value = _formState.value.copy(
             isValid = validateForm()
         )
     }
@@ -67,17 +73,21 @@ class RegisterViewModel(
         val error = ValidationManager.validateFullName(fullName)
         _formState.value = _formState.value.copy(
             fullName = fullName,
-            fullNameError = error,
+            fullNameError = error
+        )
+        _formState.value = _formState.value.copy(
             isValid = validateForm()
         )
     }
 
     fun onAcceptedTermsChanged(accepted: Boolean) {
         Log.d("RegisterViewModel", "onAcceptedTermsChanged() - accepted=$accepted")
-        _formState.value = _formState.value.copy(acceptedTerms = accepted)
-        val isFormValid = validateForm()
-        Log.d("RegisterViewModel", "onAcceptedTermsChanged() - isFormValid=$isFormValid, currentState=${_formState.value}")
-        _formState.value = _formState.value.copy(isValid = isFormValid)
+        _formState.value = _formState.value.copy(
+            acceptedTerms = accepted
+        )
+        _formState.value = _formState.value.copy(
+            isValid = validateForm()
+        )
         Log.d("RegisterViewModel", "onAcceptedTermsChanged() - finalState=${_formState.value}")
     }
 

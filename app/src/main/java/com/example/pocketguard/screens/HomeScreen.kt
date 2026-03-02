@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import com.example.pocketguard.components.TransactionItem
 import com.example.pocketguard.ui.theme.*
 import androidx.compose.animation.AnimatedVisibility
@@ -40,7 +41,7 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit = {} // Agregar callback para configuración
 ) {
     Scaffold(
-        containerColor = BackgroundLight
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -161,12 +162,12 @@ fun QuickStatsRow() {
 fun UpcomingChargesSection() {
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Próximos Cargos", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
+            Text("Próximos Cargos", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
             Icon(Icons.Default.CalendarToday, null, tint = TextGray, modifier = Modifier.size(16.dp))
         }
         Spacer(modifier = Modifier.height(12.dp))
 
-        Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(16.dp)) {
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(16.dp)) {
             Box(
                 modifier = Modifier.fillMaxWidth().padding(32.dp),
                 contentAlignment = Alignment.Center
@@ -192,13 +193,13 @@ data class ChartData(
 @Composable
 fun MonthlyTrendSection() {
     Card(
-        colors = CardDefaults.cardColors(containerColor = White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(1.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text("Tendencia Mensual", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
+            Text("Tendencia Mensual", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
 
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -221,12 +222,12 @@ fun MonthlyTrendSection() {
 fun RecentActivitySection() {
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Actividad Reciente", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
+            Text("Actividad Reciente", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
             Icon(Icons.Default.ChevronRight, null, tint = TextGray)
         }
         Spacer(modifier = Modifier.height(12.dp))
 
-        Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(16.dp)) {
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(16.dp)) {
             Box(
                 modifier = Modifier.fillMaxWidth().padding(32.dp),
                 contentAlignment = Alignment.Center
@@ -278,24 +279,49 @@ fun SmartAnalysisSection() {
 
 @Composable
 fun StatColumn(label: String, amount: String) {
-    Column { Text(label, fontSize = 12.sp, color = TextGray); Text(amount, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark) }
+    Column {
+        Text(label, fontSize = 12.sp, color = TextGray)
+        Text(amount, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
+    }
 }
 
 @Composable
 fun QuickStatCard(modifier: Modifier, icon: ImageVector, title: String, amount: String) {
-    Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(16.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) { Icon(icon, null, tint = GreenPrimary); Spacer(modifier = Modifier.height(12.dp)); Text(title, fontSize = 12.sp, color = TextGray); Text(amount, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark) }
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Icon(icon, null, tint = GreenPrimary)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(title, fontSize = 12.sp, color = TextGray)
+            Text(amount, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onBackground)
+        }
     }
 }
 
 @Composable
 fun UpcomingChargeItem(name: String, date: String, amount: String, daysLeft: String, icon: ImageVector) {
-    Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(16.dp)) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(16.dp)) {
         Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(40.dp).border(1.dp, InputBackground, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Icon(icon, null, tint = GreenPrimary, modifier = Modifier.size(20.dp)) }
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = GreenPrimary, modifier = Modifier.size(20.dp))
+            }
             Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) { Text(name, fontWeight = FontWeight.SemiBold, color = TextDark); Text(date, fontSize = 12.sp, color = TextGray) }
-            Column(horizontalAlignment = Alignment.End) { Text(amount, fontWeight = FontWeight.Bold, color = TextDark); Text(daysLeft, fontSize = 12.sp, color = GreenPrimary, fontWeight = FontWeight.Bold) }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(name, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+                Text(date, fontSize = 12.sp, color = TextGray)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(amount, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                Text(daysLeft, fontSize = 12.sp, color = GreenPrimary, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -337,12 +363,29 @@ fun ChartBar(label: String, fill: Float, isSelected: Boolean, onClick: () -> Uni
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
-        // Texto en negrita si está seleccionado
         Text(
             text = label,
             fontSize = 10.sp,
-            color = if(isSelected) TextDark else TextGray,
+            color = if(isSelected) MaterialTheme.colorScheme.onBackground else TextGray,
             fontWeight = if(isSelected) FontWeight.Bold else FontWeight.Normal
         )
     }
 }
+
+// Previews
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun HomeScreenPreview() {
+    PocketGuardTheme {
+        HomeScreen()
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun HomeScreenDarkPreview() {
+    PocketGuardTheme(darkTheme = true) {
+        HomeScreen()
+    }
+}
+

@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -50,6 +51,7 @@ import com.example.pocketguard.presentation.viewmodel.CardsViewModel
 import com.example.pocketguard.presentation.viewmodel.PreferencesViewModel
 import com.example.pocketguard.ui.theme.*
 import java.util.UUID
+import androidx.compose.ui.tooling.preview.Preview
 
 // Modelo local para categorías en Configuración
 data class SettingsCategory(
@@ -64,12 +66,12 @@ data class SettingsCategory(
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
+    preferencesViewModel: PreferencesViewModel = viewModel(factory = ServiceLocator.getPreferencesViewModelFactory()),
     onAuthExpired: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
 
-    val preferencesViewModel: PreferencesViewModel = viewModel(factory = ServiceLocator.getPreferencesViewModelFactory())
     val cardsViewModel: CardsViewModel = viewModel(factory = ServiceLocator.getCardsViewModelFactory())
     val banksViewModel: BanksViewModel = viewModel(factory = ServiceLocator.getBanksViewModelFactory())
     val categoriesViewModel: com.example.pocketguard.presentation.viewmodel.CategoriesViewModel = viewModel(factory = ServiceLocator.getCategoriesViewModelFactory())
@@ -104,6 +106,8 @@ fun SettingsScreen(
     var selectedTheme by remember { mutableStateOf("system") }
     var selectedLanguage by remember { mutableStateOf("es") }
     var showAddCardDialog by remember { mutableStateOf(false) }
+    var showEditCardDialog by remember { mutableStateOf(false) }
+    var cardToEdit by remember { mutableStateOf<com.example.pocketguard.data.models.response.Card?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -126,6 +130,27 @@ fun SettingsScreen(
         }
     }
     val banks = remember(banksState.banks) { banksState.banks.map { it.name } }
+
+    if (showEditCardDialog && cardToEdit != null) {
+        AddCardDialog(
+            banks = banks,
+            onDismiss = {
+                showEditCardDialog = false
+                cardToEdit = null
+            },
+            onSave = { bankName, alias, digits, colorHex ->
+                cardsViewModel.updateCard(
+                    cardId = cardToEdit!!.card_id,
+                    bankName = bankName,
+                    alias = alias,
+                    last4Digits = digits,
+                    colorHex = colorHex
+                )
+                showEditCardDialog = false
+                cardToEdit = null
+            }
+        )
+    }
 
     if (showAddCardDialog) {
         AddCardDialog(
@@ -154,14 +179,14 @@ fun SettingsScreen(
         },
         floatingActionButton = {
             AnimatedVisibility(
-                visible = showSaveButton || monthlyIncome != "15000",
+                visible = showSaveButton,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
                 ExtendedFloatingActionButton(
                     onClick = {
                         showSaveButton = false
-                        Log.d("Settings", "Guardando cambios: Ingreso=$monthlyIncome")
+                        Log.d("Settings", "Ingreso mensual guardado: $monthlyIncome")
                     },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -305,7 +330,11 @@ fun SettingsScreen(
                                         modifier = Modifier
                                             .size(36.dp)
                                             .background(color, CircleShape)
-                                            .border(2.dp, if(newCatColor == color) TextDark else Color.Transparent, CircleShape)
+                                            .border(
+                                                width = if(newCatColor == color) 3.dp else 0.dp,
+                                                color = MaterialTheme.colorScheme.onBackground,
+                                                shape = CircleShape
+                                            )
                                             .clickable { newCatColor = color }
                                     )
                                 }
@@ -315,7 +344,8 @@ fun SettingsScreen(
                             Button(
                                 onClick = {
                                     if(newCatName.isNotEmpty()){
-                                        val colorHex = String.format("#%06X", (0xFFFFFF and newCatColor.value.toInt()))
+                                        val argb = newCatColor.toArgb()
+                                        val colorHex = String.format("#%06X", (argb and 0xFFFFFF))
                                         if (editingCategoryId != null) {
                                             categoriesViewModel.updateCategory(
                                                 id = editingCategoryId!!,
@@ -399,7 +429,7 @@ fun SettingsScreen(
                                             isAddingCategory = true
                                             showMenu = false
                                         },
-                                        leadingIcon = { Icon(Icons.Default.Edit, null, tint = TextDark) }
+                                        leadingIcon = { Icon(Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.onSurface) }
                                     )
                                 }
                             }
@@ -508,9 +538,11 @@ fun SettingsScreen(
                                     DropdownMenuItem(
                                         text = { Text("Editar") },
                                         onClick = {
+                                            cardToEdit = card
+                                            showEditCardDialog = true
                                             showMenu = false
                                         },
-                                        leadingIcon = { Icon(Icons.Default.Edit, null, tint = TextDark) }
+                                        leadingIcon = { Icon(Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.onSurface) }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Eliminar") },
@@ -629,3 +661,20 @@ fun UserSettingsCard(
         }
     }
 }
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun SettingsScreenPreview() {
+    PocketGuardTheme {
+        SettingsScreen(onAuthExpired = {}, onLogout = {})
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun SettingsScreenDarkPreview() {
+    PocketGuardTheme(darkTheme = true) {
+        SettingsScreen(onAuthExpired = {}, onLogout = {})
+    }
+}
+

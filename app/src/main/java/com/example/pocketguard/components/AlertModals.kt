@@ -47,19 +47,19 @@ data class PaymentCard(val id: String, val name: String, val last4: String, val 
 @Composable
 fun AlertSettingsModal(
     onDismiss: () -> Unit,
-    // Actualizamos el callback para devolver TODOS los valores
+    initialEmailEnabled: Boolean = true,
+    initialPushEnabled: Boolean = true,
+    initialSubscriptionReminders: Boolean = true,
+    initialDaysBeforeNotice: Int = 3,
     onSavePreferences: (Boolean, Boolean, Boolean, Boolean, Int) -> Unit = { _, _, _, _, _ -> }
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Estados Configuración de Alertas
-    var emailEnabled by remember { mutableStateOf(true) }
-    var pushEnabled by remember { mutableStateOf(true) }
-
-    var subAlerts by remember { mutableStateOf(true) }
+    var emailEnabled by remember { mutableStateOf(initialEmailEnabled) }
+    var pushEnabled by remember { mutableStateOf(initialPushEnabled) }
+    var subAlerts by remember { mutableStateOf(initialSubscriptionReminders) }
     var budgetAlerts by remember { mutableStateOf(true) }
-
-    var daysBefore by remember { mutableStateOf(3f) }
+    var daysBefore by remember { mutableStateOf(initialDaysBeforeNotice.toFloat()) }
 
     // Estado para controlar la visibilidad del botón Guardar
     var showSaveButton by remember { mutableStateOf(false) }
@@ -131,11 +131,6 @@ fun AlertSettingsModal(
                 Spacer(modifier = Modifier.height(8.dp))
                 SettingsCard("Suscripciones", "Próximos cargos", Icons.Outlined.CreditCard, alertTypeColor, true, subAlerts) {
                     subAlerts = it
-                    showSaveButton = true
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                SettingsCard("Presupuesto", "Límites de gasto", Icons.Outlined.AttachMoney, alertTypeColor, true, budgetAlerts) {
-                    budgetAlerts = it
                     showSaveButton = true
                 }
 

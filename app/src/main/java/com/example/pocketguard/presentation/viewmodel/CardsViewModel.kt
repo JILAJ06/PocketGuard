@@ -117,8 +117,8 @@ class CardsViewModel(private val repository: CardsRepository) : ViewModel() {
         viewModelScope.launch {
             Log.d("CardsViewModel", "setDefaultCard() - ID: $id")
             repository.setDefaultCard(id).onSuccess { card ->
-                Log.d("CardsViewModel", "setDefaultCard() - Tarjeta predeterminada actualizada")
-                _state.value = _state.value.copy(cards = _state.value.cards.map { if (it.card_id == id) card else it })
+                Log.d("CardsViewModel", "setDefaultCard() - Tarjeta predeterminada actualizada, recargando lista...")
+                loadCards()
             }.onFailure { error ->
                 Log.e("CardsViewModel", "setDefaultCard() - Error: ${error.message}")
                 val unauthorized = error is AuthenticationException

@@ -237,7 +237,7 @@ fun BigExpenseCategoryItem(data: ExpenseCategoryData, isSelected: Boolean, onCli
                 Icon(data.icon, null, tint = data.color, modifier = Modifier.size(24.dp))
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text(data.name, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = TextDark)
+            Text(data.name, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
         }
         if (isSelected) {
             Box(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(20.dp).background(GreenPrimary, CircleShape).border(2.dp, White, CircleShape), contentAlignment = Alignment.Center) {

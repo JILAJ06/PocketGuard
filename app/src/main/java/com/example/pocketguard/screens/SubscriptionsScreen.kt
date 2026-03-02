@@ -29,6 +29,7 @@ import com.example.pocketguard.presentation.viewmodel.SubscriptionsViewModel
 import com.example.pocketguard.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import androidx.compose.ui.tooling.preview.Preview
 
 fun getCategoryIcon(categoryName: String): ImageVector {
     return when (categoryName.lowercase()) {
@@ -55,7 +56,9 @@ data class SubscriptionUI(
     val categoryName: String,
     val daysLeft: Int,
     val icon: ImageVector,
-    val color: Color
+    val color: Color,
+    val cardAlias: String?,
+    val cardLastDigits: String?
 )
 
 @Composable
@@ -122,8 +125,11 @@ fun SubscriptionsScreen(
         }
     }
 
-    val subscriptions = remember(state.subscriptions) {
+    val subscriptions = remember(state.subscriptions, categoriesState.categories) {
         state.subscriptions.map { sub ->
+            val currentCategory = categoriesState.categories.firstOrNull { it.name == sub.category_name }
+            val categoryColor = currentCategory?.color_hex ?: sub.category_color
+
             SubscriptionUI(
                 id = sub.subscription_id,
                 name = sub.service_name,
@@ -133,7 +139,9 @@ fun SubscriptionsScreen(
                 categoryName = sub.category_name,
                 daysLeft = sub.days_until_payment,
                 icon = Icons.Default.CreditCard,
-                color = Color(android.graphics.Color.parseColor(sub.category_color))
+                color = Color(android.graphics.Color.parseColor(categoryColor)),
+                cardAlias = sub.card_alias,
+                cardLastDigits = sub.card_last_digits
             )
         }
     }
@@ -142,13 +150,13 @@ fun SubscriptionsScreen(
     if (showDeleteDialog && subscriptionToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            containerColor = White,
+            containerColor = MaterialTheme.colorScheme.surface,
             icon = { Icon(Icons.Outlined.Delete, contentDescription = null, tint = ErrorRed) },
             title = {
                 Text(
                     text = "Eliminar Suscripción",
                     fontWeight = FontWeight.Bold,
-                    color = TextDark,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp
                 )
             },
@@ -176,7 +184,7 @@ fun SubscriptionsScreen(
                 TextButton(
                     onClick = { showDeleteDialog = false }
                 ) {
-                    Text("Cancelar", color = TextDark, fontWeight = FontWeight.Bold)
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -184,9 +192,13 @@ fun SubscriptionsScreen(
 
     // --- MODAL AGREGAR SUSCRIPCIÓN ---
     if (showAddModal) {
+        val defaultCard = cardsState.cards.firstOrNull { it.is_default }
+        val defaultCardId = defaultCard?.card_id ?: ""
+
         com.example.pocketguard.components.NewSubscriptionModal(
             cards = cards,
             categories = categories,
+            initialCardId = defaultCardId,
             onDismiss = { showAddModal = false },
             onSave = { name, price, category, cycle, date, cardId ->
                 val billingCycleId = when (cycle) {
@@ -268,7 +280,7 @@ fun SubscriptionsScreen(
     }
 
     Scaffold(
-        containerColor = BackgroundLight,
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddModal = true },
@@ -303,7 +315,7 @@ fun SubscriptionsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item {
-                        Text("Mis Servicios", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
+                        Text("Mis Servicios", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onBackground)
                     }
                     items(subscriptions) { sub ->
                         SubscriptionPremiumCard(
@@ -373,7 +385,7 @@ fun SubscriptionPremiumCard(
     val isUrgent = subscription.daysLeft <= 5
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(2.dp),
         modifier = Modifier
@@ -404,13 +416,38 @@ fun SubscriptionPremiumCard(
 
             // Info Central
             Column(modifier = Modifier.weight(1f)) {
-                Text(subscription.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
+                Text(subscription.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(subscription.cycle, fontSize = 12.sp, color = TextGray)
+                if (subscription.cardAlias != null || subscription.cardLastDigits != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CreditCard,
+                            contentDescription = null,
+                            tint = subscription.color,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (subscription.cardAlias != null) {
+                                subscription.cardAlias
+                            } else if (subscription.cardLastDigits != null) {
+                                "•••• ${subscription.cardLastDigits}"
+                            } else {
+                                ""
+                            },
+                            fontSize = 11.sp,
+                            color = TextGray,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
 
             // Precio y Días (Con un solo $)
             Column(horizontalAlignment = Alignment.End) {
-                Text("-$${subscription.price}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
+                Text("-$${subscription.price}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
                 Spacer(modifier = Modifier.height(8.dp))
                 // Badge de días
                 Box(
@@ -430,3 +467,28 @@ fun SubscriptionPremiumCard(
         }
     }
 }
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun SubscriptionsScreenPreview() {
+    PocketGuardTheme {
+        SubscriptionsScreen(
+            onAuthExpired = {},
+            onAddClick = {},
+            onEditClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun SubscriptionsScreenDarkPreview() {
+    PocketGuardTheme(darkTheme = true) {
+        SubscriptionsScreen(
+            onAuthExpired = {},
+            onAddClick = {},
+            onEditClick = {}
+        )
+    }
+}
+
