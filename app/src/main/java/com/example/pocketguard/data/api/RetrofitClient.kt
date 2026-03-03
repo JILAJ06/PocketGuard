@@ -2,6 +2,7 @@ package com.example.pocketguard.data.api
 
 import android.content.Context
 import com.example.pocketguard.constants.ApiConstants
+import com.example.pocketguard.data.remote.DashboardService
 import com.example.pocketguard.data.storage.TokenManager
 import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
@@ -20,6 +21,7 @@ object RetrofitClient {
     private var cardsService: CardsService? = null
     private var preferencesService: PreferencesService? = null
     private var notificationsService: NotificationsService? = null
+    private var dashboardService: DashboardService? = null
     private var tokenManager: TokenManager? = null
 
     fun getRetrofitInstance(context: Context): Retrofit {
@@ -90,6 +92,13 @@ object RetrofitClient {
         return notificationsService!!
     }
 
+    fun getDashboardService(context: Context): DashboardService {
+        if (dashboardService == null) {
+            dashboardService = getRetrofitInstance(context).create(DashboardService::class.java)
+        }
+        return dashboardService!!
+    }
+
     private fun getHttpClient(context: Context): OkHttpClient {
         tokenManager = TokenManager(context)
         return OkHttpClient.Builder()
@@ -119,6 +128,7 @@ object RetrofitClient {
         cardsService = null
         preferencesService = null
         notificationsService = null
+        dashboardService = null
         tokenManager = null
     }
 }

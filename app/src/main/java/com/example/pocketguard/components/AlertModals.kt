@@ -10,29 +10,21 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -192,19 +184,30 @@ fun AlertSettingsModal(
 fun AddCardDialog(
     banks: List<String>,
     onDismiss: () -> Unit,
-    onSave: (String, String, String?, String?) -> Unit
+    onSave: (String, String, String?, String?) -> Unit,
+    initialBankName: String = "",
+    initialAlias: String = "",
+    initialDigits: String = "",
+    initialColorHex: String = "#1976D2",
+    isEditMode: Boolean = false
 ) {
-    var bankName by remember { mutableStateOf("") }
-    var alias by remember { mutableStateOf("") }
-    var digits by remember { mutableStateOf("") }
+    var bankName by remember { mutableStateOf(initialBankName) }
+    var alias by remember { mutableStateOf(initialAlias) }
+    var digits by remember { mutableStateOf(initialDigits) }
     val cardColors = listOf(Color(0xFF1976D2), Color(0xFF2E7D32), Color(0xFFC62828), Color(0xFFF9A825), Color(0xFF8E44AD), Color(0xFF34495E))
-    var selectedColor by remember { mutableStateOf(cardColors[0]) }
+
+    val initialColor = try {
+        Color(android.graphics.Color.parseColor(initialColorHex))
+    } catch (e: Exception) {
+        cardColors[0]
+    }
+    var selectedColor by remember { mutableStateOf(initialColor) }
     var showBanksDropdown by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Nueva Tarjeta", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
+                Text(if (isEditMode) "Editar Tarjeta" else "Nueva Tarjeta", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
                 Spacer(modifier = Modifier.height(20.dp))
                 Box {
                     OutlinedTextField(value = bankName, onValueChange = { bankName = it }, label = { Text("Nombre del Banco") }, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().clickable { if (banks.isNotEmpty()) showBanksDropdown = true })
@@ -237,45 +240,70 @@ fun EditCardDialog(
     bankName: String,
     last4Digits: String?,
     initialAlias: String,
-    initialColorHex: String,
+    initialColorHex: String?,
     onDismiss: () -> Unit,
-    onSave: (String, String?) -> Unit // Solo alias y colorHex
+    onSave: (String, String) -> Unit  // (alias, colorHex)
 ) {
     var alias by remember { mutableStateOf(initialAlias) }
-    val cardColors = listOf(Color(0xFF1976D2), Color(0xFF2E7D32), Color(0xFFC62828), Color(0xFFF9A825), Color(0xFF8E44AD), Color(0xFF34495E))
-    var selectedColor by remember {
-        mutableStateOf(
-            try {
-                Color(android.graphics.Color.parseColor(initialColorHex))
-            } catch (e: Exception) {
-                cardColors[0]
-            }
-        )
+    val cardColors = listOf(
+        Color(0xFF1976D2),
+        Color(0xFF2E7D32),
+        Color(0xFFC62828),
+        Color(0xFFF9A825),
+        Color(0xFF8E44AD),
+        Color(0xFF34495E)
+    )
+
+    val initialColor = try {
+        Color(android.graphics.Color.parseColor(initialColorHex))
+    } catch (e: Exception) {
+        cardColors[0]
     }
+    var selectedColor by remember { mutableStateOf(initialColor) }
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Editar Tarjeta", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "Editar Tarjeta",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Campo de solo lectura - Banco
+                // Mostrar info de la tarjeta (solo lectura)
                 OutlinedTextField(
                     value = bankName,
                     onValueChange = {},
-                    label = { Text("Nombre del Banco") },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Banco") },
                     enabled = false,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        disabledTextColor = TextDark,
-                        disabledBorderColor = InputBackground,
-                        disabledLabelColor = TextGray
-                    )
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
                 )
+
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Campo editable - Alias
+                OutlinedTextField(
+                    value = "•••• ${last4Digits ?: ""}",
+                    onValueChange = {},
+                    label = { Text("Últimos 4 dígitos") },
+                    enabled = false,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Alias (editable)
                 OutlinedTextField(
                     value = alias,
                     onValueChange = { alias = it },
@@ -283,27 +311,22 @@ fun EditCardDialog(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(12.dp))
 
-                // Campo de solo lectura - Últimos 4 dígitos
-                OutlinedTextField(
-                    value = last4Digits ?: "****",
-                    onValueChange = {},
-                    label = { Text("Últimos 4 dígitos") },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        disabledTextColor = TextDark,
-                        disabledBorderColor = InputBackground,
-                        disabledLabelColor = TextGray
-                    )
-                )
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Text("Color", fontSize = 12.sp, color = TextGray, modifier = Modifier.align(Alignment.Start))
+                Text(
+                    "Color",
+                    fontSize = 12.sp,
+                    color = TextGray,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     cardColors.forEach { color ->
                         Box(
                             modifier = Modifier
@@ -312,21 +335,34 @@ fun EditCardDialog(
                                 .clickable { selectedColor = color }
                                 .border(
                                     2.dp,
-                                    if(selectedColor == color) TextDark else Color.Transparent,
+                                    if (selectedColor == color) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                                     CircleShape
                                 )
                         )
                     }
                 }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Button(
-                    onClick = { onSave(alias, colorToHex(selectedColor)) },
-                    enabled = alias.isNotEmpty(),
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Guardar Cambios", fontWeight = FontWeight.Bold)
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Cancelar")
+                    }
+
+                    Button(
+                        onClick = { onSave(alias, colorToHex(selectedColor)) },
+                        enabled = alias.isNotEmpty(),
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
+                    ) {
+                        Text("Guardar", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

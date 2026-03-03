@@ -175,26 +175,6 @@ fun ExpensesScreen(
         } else {
             Column(modifier = Modifier.fillMaxSize().padding(paddingValues).verticalScroll(rememberScrollState()).padding(20.dp)) {
 
-                Text("Gastos Diarios", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                Text("Registra tus gastos", fontSize = 13.sp, color = TextGray)
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    QuickActionButton("Café", "$50", Icons.Filled.LocalCafe)
-                    QuickActionButton("Comida", "$150", Icons.Filled.Restaurant)
-                    QuickActionButton("Transporte", "$100", Icons.Filled.DirectionsCar)
-                    QuickActionButton("Snack", "$30", Icons.Filled.ShoppingCart)
-                }
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    SummaryCardDark(title = "Hoy", amount = "$${String.format("%.2f", currentTotal)}", modifier = Modifier.weight(1f))
-                    Spacer(modifier = Modifier.width(12.dp))
-                    SummaryCardLight(title = "Mes", amount = "$${String.format("%.2f", expenses.sumOf { it.amountValue })}", icon = "$", color = GreenPrimary, modifier = Modifier.weight(1f))
-                    Spacer(modifier = Modifier.width(12.dp))
-                    SummaryCardLight(title = "Hormiga", amount = "$${String.format("%.2f", expenses.minOfOrNull { it.amountValue } ?: 0.0)}", icon = "🏷️", color = TextDark, modifier = Modifier.weight(1f))
-                }
-                Spacer(modifier = Modifier.height(20.dp))
 
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(0.dp), modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(20.dp)) {

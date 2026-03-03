@@ -46,7 +46,6 @@ import com.example.pocketguard.components.AddCardDialog
 import com.example.pocketguard.components.EditCardDialog
 import com.example.pocketguard.components.MiniCreditCard
 import com.example.pocketguard.components.PaymentCard
-import com.example.pocketguard.data.models.Card
 import com.example.pocketguard.presentation.di.ServiceLocator
 import com.example.pocketguard.presentation.viewmodel.BanksViewModel
 import com.example.pocketguard.presentation.viewmodel.CardsViewModel
@@ -84,8 +83,13 @@ fun SettingsScreen(
     val categoriesState by categoriesViewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var monthlyIncome by remember { mutableStateOf("15000") }
+    var monthlyIncome by remember { mutableStateOf(state.monthlyIncome.toString()) }
     var showSaveButton by remember { mutableStateOf(false) }
+
+    // Actualizar monthlyIncome cuando cambie el estado
+    LaunchedEffect(state.monthlyIncome) {
+        monthlyIncome = state.monthlyIncome.toString()
+    }
 
     var isAddingCategory by remember { mutableStateOf(false) }
     var newCatName by remember { mutableStateOf("") }
@@ -109,7 +113,7 @@ fun SettingsScreen(
     var selectedLanguage by remember { mutableStateOf("es") }
     var showAddCardDialog by remember { mutableStateOf(false) }
     var showEditCardDialog by remember { mutableStateOf(false) }
-    var cardToEdit by remember { mutableStateOf<Card?>(null) }
+    var cardToEdit by remember { mutableStateOf<com.example.pocketguard.data.models.Card?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -134,18 +138,19 @@ fun SettingsScreen(
     val banks = remember(banksState.banks) { banksState.banks.map { it.name } }
 
     if (showEditCardDialog && cardToEdit != null) {
+        val card = cardToEdit!!  // Variable local para evitar smart cast issues
         EditCardDialog(
-            bankName = cardToEdit!!.bank_name,
-            last4Digits = cardToEdit!!.last_4_digits,
-            initialAlias = cardToEdit!!.alias,
-            initialColorHex = cardToEdit!!.color_hex ?: "#4A90E2",
+            bankName = card.bank_name,
+            last4Digits = card.last_4_digits,
+            initialAlias = card.alias,
+            initialColorHex = card.color_hex ?: "#1976D2",
             onDismiss = {
                 showEditCardDialog = false
                 cardToEdit = null
             },
             onSave = { alias, colorHex ->
                 cardsViewModel.updateCard(
-                    id = cardToEdit!!.card_id,
+                    id = card.card_id,
                     bankName = null,
                     alias = alias,
                     last4 = null,
@@ -252,6 +257,36 @@ fun SettingsScreen(
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
                     )
+
+                    // Botón de guardar
+                    AnimatedVisibility(
+                        visible = showSaveButton,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Button(
+                            onClick = {
+                                val income = monthlyIncome.toDoubleOrNull()
+                                if (income != null && income > 0) {
+                                    preferencesViewModel.saveMonthlyIncome(income)
+                                    showSaveButton = false
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Ingreso mensual guardado")
+                                    }
+                                } else {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Ingresa un monto válido")
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
+                        ) {
+                            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Guardar Ingreso Mensual")
+                        }
+                    }
                 }
             }
 

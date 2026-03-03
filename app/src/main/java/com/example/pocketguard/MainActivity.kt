@@ -53,7 +53,10 @@ class MainActivity : ComponentActivity() {
 fun PocketGuardNavigation() {
     val navController = rememberNavController()
     val sessionManager = ServiceLocator.getSessionManager()
-    val startDestination = if (sessionManager.isSessionActive()) "inicio" else "login"
+
+    // Verificar si la sesión está activa Y el token no ha expirado
+    val isValidSession = sessionManager.isSessionActive() && !sessionManager.isTokenExpired()
+    val startDestination = if (isValidSession) "inicio" else "login"
 
     val preferencesViewModel: PreferencesViewModel = viewModel(
         factory = ServiceLocator.getPreferencesViewModelFactory()
@@ -123,6 +126,12 @@ fun PocketGuardNavigation() {
                 HomeScreen(
                     onNavigateToSettings = {
                         navController.navigate("configuracion")
+                    },
+                    onAuthExpired = {
+                        sessionManager.clearSession()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
                 )
             }
@@ -186,6 +195,12 @@ fun PocketGuardNavigation() {
             composable("configuracion") {
                 SettingsScreen(
                     preferencesViewModel = preferencesViewModel,
+                    onAuthExpired = {
+                        sessionManager.clearSession()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
                     onLogout = {
                         sessionManager.clearSession()
                         navController.navigate("login") {

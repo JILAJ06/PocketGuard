@@ -82,7 +82,7 @@ fun NewExpenseModal(
                 }) { Text("Aceptar", fontWeight = FontWeight.Bold, color = GreenPrimary) }
             },
             dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancelar", color = TextGray) } },
-            colors = DatePickerDefaults.colors(containerColor = White)
+            colors = DatePickerDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             DatePicker(state = datePickerState)
         }
@@ -104,7 +104,7 @@ fun NewExpenseModal(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = White,
+        containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = Modifier.fillMaxHeight(0.95f)
     ) {
@@ -116,9 +116,9 @@ fun NewExpenseModal(
                         Icon(Icons.Default.Add, contentDescription = null, tint = White)
                     }
                     Spacer(modifier = Modifier.width(16.dp))
-                    Column { Text("Nuevo Gasto", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark); Text("Registra tu compra", fontSize = 14.sp, color = TextGray) }
+                    Column { Text("Nuevo Gasto", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurface); Text("Registra tu compra", fontSize = 14.sp, color = TextGray) }
                 }
-                IconButton(onClick = onDismiss, modifier = Modifier.background(InputBackground, CircleShape)) { Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = TextGray) }
+                IconButton(onClick = onDismiss, modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)) { Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -157,19 +157,25 @@ fun NewExpenseModal(
                 // 3. Monto
                 ExpenseLabel("Monto del Gasto", Icons.Outlined.AttachMoney)
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(56.dp).background(InputBackground, RoundedCornerShape(16.dp))
+                    modifier = Modifier.fillMaxWidth().height(56.dp)
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { amountFocusRequester.requestFocus() }
                         .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        Text("$ ", fontWeight = FontWeight.Bold, color = TextGray)
+                        Text("$ ", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Box(modifier = Modifier.weight(1f)) {
-                            if (amount.isEmpty()) Text("0.00", color = TextGray.copy(alpha = 0.5f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            if (amount.isEmpty()) Text("0.00", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             BasicTextField(
                                 value = amount, onValueChange = { amount = it },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                textStyle = TextStyle(fontSize = 18.sp, color = TextDark, fontWeight = FontWeight.Bold),
+                                textStyle = TextStyle(fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold),
                                 modifier = Modifier.fillMaxWidth().focusRequester(amountFocusRequester)
                             )
                         }
@@ -228,8 +234,8 @@ fun BigExpenseCategoryItem(data: ExpenseCategoryData, isSelected: Boolean, onCli
     Box(
         modifier = Modifier
             .aspectRatio(1f)
-            .border(width = if (isSelected) 2.dp else 1.dp, color = if (isSelected) GreenPrimary else InputBackground, shape = RoundedCornerShape(16.dp))
-            .background(color = if (isSelected) GreenPrimary.copy(alpha = 0.05f) else White, shape = RoundedCornerShape(16.dp))
+            .border(width = if (isSelected) 2.dp else 1.dp, color = if (isSelected) GreenPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), shape = RoundedCornerShape(16.dp))
+            .background(color = if (isSelected) GreenPrimary.copy(alpha = 0.05f) else MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(16.dp))
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
@@ -254,12 +260,12 @@ fun NewCategorySquareButton(onClick: () -> Unit) {
         modifier = Modifier
             .aspectRatio(1f)
             .border(1.dp, GreenPrimary, RoundedCornerShape(16.dp))
-            .background(White, RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(modifier = Modifier.size(48.dp).background(InputBackground, CircleShape), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape), contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.Add, null, tint = GreenPrimary, modifier = Modifier.size(24.dp))
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -283,16 +289,16 @@ fun NewCategoryDialog(
     val colors = listOf(Color(0xFF00A4EF), Color(0xFF2ECC71), Color(0xFFFF9900), Color(0xFF9146FF), Color(0xFFE50914), Color(0xFFE91E63), Color(0xFF34495E), Color(0xFF95A5A6), Color(0xFF1ABC9C))
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth().padding(4.dp)) {
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth().padding(4.dp)) {
             Column(modifier = Modifier.padding(24.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Nueva Categoría", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
+                Text("Nueva Categoría", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(modifier = Modifier.height(24.dp))
                 ExpenseLabel("Nombre")
                 ExpenseInput(value = name, onValueChange = { name = it }, placeholder = "Ej: Viajes...")
                 Spacer(modifier = Modifier.height(24.dp))
                 ExpenseLabel("Icono")
                 LazyVerticalGrid(columns = GridCells.Adaptive(40.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.height(120.dp)) {
-                    items(icons.size) { index -> Box(modifier = Modifier.size(40.dp).background(if (selectedIcon == icons[index]) GreenPrimary.copy(0.2f) else InputBackground, RoundedCornerShape(8.dp)).clickable { selectedIcon = icons[index] }, contentAlignment = Alignment.Center) { Icon(icons[index], null, tint = if(selectedIcon == icons[index]) GreenPrimary else TextGray) } }
+                    items(icons.size) { index -> Box(modifier = Modifier.size(40.dp).background(if (selectedIcon == icons[index]) GreenPrimary.copy(0.2f) else MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)).clickable { selectedIcon = icons[index] }, contentAlignment = Alignment.Center) { Icon(icons[index], null, tint = if(selectedIcon == icons[index]) GreenPrimary else MaterialTheme.colorScheme.onSurfaceVariant) } }
                 }
                 Spacer(modifier = Modifier.height(24.dp))
                 ExpenseLabel("Color")
@@ -319,6 +325,11 @@ fun ExpenseLabel(text: String, icon: ImageVector? = null) {
 fun ExpenseInput(value: String, onValueChange: (String) -> Unit, placeholder: String) {
     Box(
         modifier = Modifier.fillMaxWidth().height(56.dp)
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(16.dp)
+            )
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.CenterStart

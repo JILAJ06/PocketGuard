@@ -6,6 +6,7 @@ import com.example.pocketguard.data.repository.AuthRepository
 import com.example.pocketguard.data.repository.BanksRepository
 import com.example.pocketguard.data.repository.CardsRepository
 import com.example.pocketguard.data.repository.CategoriesRepository
+import com.example.pocketguard.data.repository.DashboardRepository
 import com.example.pocketguard.data.repository.ExpensesRepository
 import com.example.pocketguard.data.repository.NotificationsRepository
 import com.example.pocketguard.data.repository.PreferencesRepository
@@ -25,6 +26,7 @@ object ServiceLocator {
     private var cardsRepository: CardsRepository? = null
     private var preferencesRepository: PreferencesRepository? = null
     private var notificationsRepository: NotificationsRepository? = null
+    private var dashboardRepository: DashboardRepository? = null
     private var sessionManager: SessionManager? = null
     private var loginViewModelFactory: LoginViewModelFactory? = null
     private var registerViewModelFactory: RegisterViewModelFactory? = null
@@ -37,6 +39,7 @@ object ServiceLocator {
     private var cardsViewModelFactory: CardsViewModelFactory? = null
     private var preferencesViewModelFactory: PreferencesViewModelFactory? = null
     private var notificationsViewModelFactory: NotificationsViewModelFactory? = null
+    private var dashboardViewModelFactory: DashboardViewModelFactory? = null
 
     fun initializeServices(context: Context) {
         if (tokenManager == null) {
@@ -50,6 +53,7 @@ object ServiceLocator {
             cardsRepository = CardsRepository(context)
             preferencesRepository = PreferencesRepository(context)
             notificationsRepository = NotificationsRepository(context)
+            dashboardRepository = DashboardRepository(RetrofitClient.getDashboardService(context))
             sessionManager = SessionManager(context, tokenManager!!)
             loginViewModelFactory = LoginViewModelFactory(authRepository!!)
             registerViewModelFactory = RegisterViewModelFactory(authRepository!!)
@@ -60,8 +64,9 @@ object ServiceLocator {
             categoriesViewModelFactory = CategoriesViewModelFactory(categoriesRepository!!)
             banksViewModelFactory = BanksViewModelFactory(banksRepository!!)
             cardsViewModelFactory = CardsViewModelFactory(cardsRepository!!)
-            preferencesViewModelFactory = PreferencesViewModelFactory(preferencesRepository!!)
+            preferencesViewModelFactory = PreferencesViewModelFactory(preferencesRepository!!, context)
             notificationsViewModelFactory = NotificationsViewModelFactory(notificationsRepository!!)
+            dashboardViewModelFactory = DashboardViewModelFactory(dashboardRepository!!)
         }
     }
 
@@ -121,6 +126,10 @@ object ServiceLocator {
         return notificationsViewModelFactory ?: throw IllegalStateException("Services not initialized")
     }
 
+    fun getDashboardViewModelFactory(): DashboardViewModelFactory {
+        return dashboardViewModelFactory ?: throw IllegalStateException("Services not initialized")
+    }
+
     fun reset() {
         tokenManager = null
         authRepository = null
@@ -131,6 +140,7 @@ object ServiceLocator {
         cardsRepository = null
         preferencesRepository = null
         notificationsRepository = null
+        dashboardRepository = null
         sessionManager = null
         loginViewModelFactory = null
         registerViewModelFactory = null
@@ -143,6 +153,7 @@ object ServiceLocator {
         cardsViewModelFactory = null
         preferencesViewModelFactory = null
         notificationsViewModelFactory = null
+        dashboardViewModelFactory = null
         RetrofitClient.resetInstances()
     }
 }

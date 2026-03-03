@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.pocketguard.components.NewCategoryDialog
+import com.example.pocketguard.components.colorToHex
 import com.example.pocketguard.presentation.di.ServiceLocator
 import com.example.pocketguard.presentation.viewmodel.AddSubscriptionViewModel
 import com.example.pocketguard.presentation.viewmodel.CategoriesViewModel
@@ -78,6 +83,7 @@ fun AddSubscriptionScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var showCycleDropdown by remember { mutableStateOf(false) }
     var showCategoryDropdown by remember { mutableStateOf(false) }
+    var showNewCategoryDialog by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
 
     val availableColors = listOf(BrandNetflix, BrandSpotify, BrandAmazon, BrandHBO, BrandDisney, BrandApple, GreenPrimary)
@@ -114,6 +120,16 @@ fun AddSubscriptionScreen(
         }
     }
 
+    if (showNewCategoryDialog) {
+        NewCategoryDialog(
+            onDismiss = { showNewCategoryDialog = false },
+            onSave = { name, _, color ->
+                categoriesViewModel.createCategory(name, null, colorToHex(color))
+                showNewCategoryDialog = false
+            }
+        )
+    }
+
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -129,7 +145,7 @@ fun AddSubscriptionScreen(
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) { Text("Cancelar", color = TextGray) }
             },
-            colors = DatePickerDefaults.colors(containerColor = White)
+            colors = DatePickerDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             DatePicker(
                 state = datePickerState,
@@ -145,16 +161,16 @@ fun AddSubscriptionScreen(
     }
 
     Scaffold(
-        containerColor = White,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(screenTitle, fontWeight = FontWeight.Bold, color = TextDark) },
+                title = { Text(screenTitle, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground) },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick, modifier = Modifier.background(InputBackground, CircleShape)) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Atrás", tint = TextDark)
+                    IconButton(onClick = onBackClick, modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Atrás", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = White),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
         }
@@ -170,10 +186,10 @@ fun AddSubscriptionScreen(
                 Text("Monto del pago", color = TextGray, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("$", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = TextGray)
+                    Text("$", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.width(4.dp))
                     Box {
-                        if (price.isEmpty()) Text("0.00", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = TextGray.copy(alpha = 0.3f))
+                        if (price.isEmpty()) Text("0.00", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
                         BasicTextField(
                             value = price,
                             onValueChange = { input ->
@@ -182,7 +198,7 @@ fun AddSubscriptionScreen(
                                 }
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            textStyle = TextStyle(color = TextDark, fontWeight = FontWeight.Bold, fontSize = 48.sp),
+                            textStyle = TextStyle(color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 48.sp),
                             modifier = Modifier.width(IntrinsicSize.Min)
                         )
                     }
@@ -196,12 +212,100 @@ fun AddSubscriptionScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            FormLabel("Categoría")
-            Box {
-                FormSelector(value = categoryName, icon = Icons.Default.Category, onClick = { showCategoryDropdown = true })
-                CustomDropdown(expanded = showCategoryDropdown, onDismiss = { showCategoryDropdown = false }, items = categoriesState.categories.map { it.name }) { selected ->
-                    categoryName = selected
-                    categoryId = categoriesState.categories.firstOrNull { it.name == selected }?.id ?: ""
+            FormLabel("Selecciona Categoría")
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.height(240.dp)
+            ) {
+                items(categoriesState.categories.size) { index ->
+                    val category = categoriesState.categories[index]
+                    val isSelected = categoryId == category.id
+
+                    Box(
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .border(
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = if (isSelected) GreenPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .background(
+                                color = if (isSelected) GreenPrimary.copy(alpha = 0.05f) else MaterialTheme.colorScheme.surface,
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .clickable {
+                                categoryId = category.id
+                                categoryName = category.name
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(
+                                        Color(android.graphics.Color.parseColor(category.color_hex ?: "#95A5A6")).copy(alpha = 0.2f),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Category,
+                                    null,
+                                    tint = Color(android.graphics.Color.parseColor(category.color_hex ?: "#95A5A6")),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                category.name,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                maxLines = 1
+                            )
+                        }
+                        if (isSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp)
+                                    .size(20.dp)
+                                    .background(GreenPrimary, CircleShape)
+                                    .border(2.dp, White, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Check, null, tint = White, modifier = Modifier.size(12.dp))
+                            }
+                        }
+                    }
+                }
+                // Botón Nueva Categoría
+                item {
+                    Box(
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .border(1.dp, GreenPrimary, RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+                            .clickable { showNewCategoryDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Add, null, tint = GreenPrimary, modifier = Modifier.size(24.dp))
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Nueva", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = GreenPrimary)
+                        }
+                    }
                 }
             }
 
@@ -284,7 +388,7 @@ fun AddSubscriptionScreen(
 
 @Composable
 fun FormLabel(text: String) {
-    Text(text, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark, modifier = Modifier.padding(bottom = 12.dp))
+    Text(text, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(bottom = 12.dp))
 }
 
 @Composable
@@ -293,15 +397,15 @@ fun FormInput(value: String, onValueChange: (String) -> Unit, placeholder: Strin
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .background(InputBackground, RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.CenterStart
     ) {
-        if (value.isEmpty()) Text(placeholder, color = TextGray.copy(alpha = 0.5f), fontSize = 14.sp)
+        if (value.isEmpty()) Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = 14.sp)
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            textStyle = TextStyle(fontSize = 16.sp, color = TextDark, fontWeight = FontWeight.Medium),
+            textStyle = TextStyle(fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium),
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -335,7 +439,7 @@ fun CustomDropdown(expanded: Boolean, onDismiss: () -> Unit, items: List<String>
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
-        modifier = Modifier.background(White).width(200.dp).heightIn(max = 250.dp)
+        modifier = Modifier.background(MaterialTheme.colorScheme.surface).width(200.dp).heightIn(max = 250.dp)
     ) {
         items.forEach { item ->
             DropdownMenuItem(

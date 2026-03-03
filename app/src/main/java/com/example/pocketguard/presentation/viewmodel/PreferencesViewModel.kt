@@ -1,5 +1,6 @@
 package com.example.pocketguard.presentation.viewmodel
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -8,21 +9,52 @@ import com.example.pocketguard.data.exceptions.AuthenticationException
 import com.example.pocketguard.data.models.Preference
 import com.example.pocketguard.data.models.UpdatePreferenceRequest
 import com.example.pocketguard.data.repository.PreferencesRepository
+import com.example.pocketguard.data.storage.UserPreferencesManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 data class PreferencesState(
     val preferences: Preference? = null,
+    val monthlyIncome: Double = 15000.0,
     val isLoading: Boolean = false,
     val errorMessage: String = "",
     val isUnauthorized: Boolean = false
 )
 
-class PreferencesViewModel(private val repository: PreferencesRepository) : ViewModel() {
+class PreferencesViewModel(
+    private val repository: PreferencesRepository,
+    private val userPreferencesManager: UserPreferencesManager
+) : ViewModel() {
 
     private val _state = MutableStateFlow(PreferencesState())
     val state: StateFlow<PreferencesState> = _state
+
+    init {
+        loadMonthlyIncome()
+    }
+
+    /**
+     * Carga el ingreso mensual guardado localmente
+     */
+    private fun loadMonthlyIncome() {
+        viewModelScope.launch {
+            userPreferencesManager.getMonthlyIncome().collect { income ->
+                _state.value = _state.value.copy(monthlyIncome = income)
+            }
+        }
+    }
+
+    /**
+     * Guarda el ingreso mensual localmente (NO se envía al backend)
+     */
+    fun saveMonthlyIncome(amount: Double) {
+        viewModelScope.launch {
+            userPreferencesManager.saveMonthlyIncome(amount)
+            _state.value = _state.value.copy(monthlyIncome = amount)
+            Log.d("PreferencesViewModel", "Monthly income saved locally: $amount")
+        }
+    }
 
     fun loadPreferences() {
         viewModelScope.launch {
@@ -69,9 +101,12 @@ class PreferencesViewModel(private val repository: PreferencesRepository) : View
     }
 }
 
-class PreferencesViewModelFactory(private val repository: PreferencesRepository) : ViewModelProvider.Factory {
+class PreferencesViewModelFactory(
+    private val repository: PreferencesRepository,
+    private val context: Context
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return PreferencesViewModel(repository) as T
+        return PreferencesViewModel(repository, UserPreferencesManager(context)) as T
     }
 }
 
