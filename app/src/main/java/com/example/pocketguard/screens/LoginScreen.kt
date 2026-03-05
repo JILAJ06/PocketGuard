@@ -28,6 +28,7 @@ fun LoginScreen(
     viewModel: LoginViewModel,
     onLoginSuccess: () -> Unit,
     onRegisterLinkClick: () -> Unit,
+    onForgotPasswordClick: () -> Unit,
     onGoogleClick: () -> Unit
 ) {
     val formState by viewModel.formState.collectAsStateWithLifecycle()
@@ -123,7 +124,7 @@ fun LoginScreen(
         }
 
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-            TextButton(onClick = { }) {
+            TextButton(onClick = onForgotPasswordClick) {
                 Text("¿Olvidaste tu contraseña?", color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
             }
         }
@@ -171,4 +172,3 @@ fun LoginScreen(
         }
     }
 }
-

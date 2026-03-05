@@ -98,6 +98,7 @@ fun PocketGuardNavigation() {
                         }
                     },
                     onRegisterLinkClick = { navController.navigate("register") },
+                    onForgotPasswordClick = { navController.navigate("forgot_password") },
                     onGoogleClick = { }
                 )
             }
@@ -116,6 +117,15 @@ fun PocketGuardNavigation() {
                     },
                     onLoginLinkClick = { navController.navigate("login") },
                     onGoogleClick = { }
+                )
+            }
+
+            composable("forgot_password") {
+                ForgotPasswordScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onSendResetLink = { email ->
+                        // Aquí iría la lógica para enviar el correo (ViewModel)
+                    }
                 )
             }
 
