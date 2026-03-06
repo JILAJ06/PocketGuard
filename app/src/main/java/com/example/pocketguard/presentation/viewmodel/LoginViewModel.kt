@@ -85,6 +85,54 @@ class LoginViewModel(
         }
     }
 
+    /**
+     * Login con Google usando el ID Token
+     */
+    fun loginWithGoogle(idToken: String) {
+        Log.d("LoginViewModel", "loginWithGoogle() - Iniciando login con Google")
+        _formState.value = _formState.value.copy(isLoading = true)
+        _errorMessage.value = ""
+
+        viewModelScope.launch {
+            try {
+                val result = authRepository.googleMobileAuth(idToken)
+                result.let { authResult ->
+                    when {
+                        authResult is com.example.pocketguard.data.models.AuthResult.Success -> {
+                            Log.d("LoginViewModel", "loginWithGoogle() - Login con Google exitoso!")
+                            _isSuccess.value = true
+                            _errorMessage.value = ""
+                        }
+                        authResult is com.example.pocketguard.data.models.AuthResult.Error -> {
+                            Log.e("LoginViewModel", "loginWithGoogle() - Error: ${authResult.message}")
+                            val errorMsg = when {
+                                authResult.message.contains("Unable to resolve host") ||
+                                authResult.message.contains("Failed to connect") ->
+                                    "No se pudo conectar al servidor. Verifica que tu backend esté corriendo en 192.168.110.230:3001"
+                                authResult.message.contains("timeout") ->
+                                    "Tiempo de espera agotado. Verifica tu conexión"
+                                else -> authResult.message
+                            }
+                            _errorMessage.value = errorMsg
+                            _isSuccess.value = false
+                        }
+                        else -> {
+                            Log.e("LoginViewModel", "loginWithGoogle() - Estado desconocido")
+                            _errorMessage.value = "Error desconocido al iniciar sesión con Google"
+                            _isSuccess.value = false
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("LoginViewModel", "loginWithGoogle() - Exception: ${e.message}", e)
+                _errorMessage.value = "Error de conexión: ${e.message}"
+                _isSuccess.value = false
+            } finally {
+                _formState.value = _formState.value.copy(isLoading = false)
+            }
+        }
+    }
+
     private fun validateForm(email: String, password: String): Boolean {
         val emailError = ValidationManager.validateEmail(email)
         val passwordError = ValidationManager.validatePassword(password)
@@ -97,6 +145,12 @@ class LoginViewModel(
 
     fun getPasswordErrorMessage(): String {
         return ValidationManager.getErrorMessage(_formState.value.passwordError)
+    }
+
+    fun setError(message: String) {
+        _errorMessage.value = message
+        _formState.value = _formState.value.copy(isLoading = false)
+        _isSuccess.value = false
     }
 
     fun resetForm() {

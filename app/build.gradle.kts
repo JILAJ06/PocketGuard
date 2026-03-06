@@ -78,15 +78,15 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
     // Import the Firebase BoM
-
     implementation(platform("com.google.firebase:firebase-bom:34.9.0"))
 
-
-    // TODO: Add the dependencies for Firebase products you want to use
-
-    // When using the BoM, don't specify versions in Firebase dependencies
-
+    // Firebase Cloud Messaging para notificaciones push
+    implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.firebase:firebase-analytics")
 
+    // Google Sign-In (Play Services)
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
 
+    // Activity Result API
+    implementation("androidx.activity:activity-compose:1.8.2")
 }

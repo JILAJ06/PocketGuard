@@ -205,30 +205,124 @@ fun AddCardDialog(
     var showBanksDropdown by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(if (isEditMode) "Editar Tarjeta" else "Nueva Tarjeta", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    if (isEditMode) "Editar Tarjeta" else "Nueva Tarjeta",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
                 Spacer(modifier = Modifier.height(20.dp))
+
                 Box {
-                    OutlinedTextField(value = bankName, onValueChange = { bankName = it }, label = { Text("Nombre del Banco") }, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().clickable { if (banks.isNotEmpty()) showBanksDropdown = true })
-                    DropdownMenu(expanded = showBanksDropdown, onDismissRequest = { showBanksDropdown = false }) {
+                    OutlinedTextField(
+                        value = bankName,
+                        onValueChange = { bankName = it },
+                        label = { Text("Nombre del Banco") },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { if (banks.isNotEmpty()) showBanksDropdown = true },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedBorderColor = GreenPrimary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        )
+                    )
+                    DropdownMenu(
+                        expanded = showBanksDropdown,
+                        onDismissRequest = { showBanksDropdown = false },
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                    ) {
                         banks.forEach { bank ->
-                            DropdownMenuItem(text = { Text(bank) }, onClick = { bankName = bank; showBanksDropdown = false })
+                            DropdownMenuItem(
+                                text = { Text(bank, color = MaterialTheme.colorScheme.onSurface) },
+                                onClick = { bankName = bank; showBanksDropdown = false }
+                            )
                         }
                     }
                 }
+
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(value = alias, onValueChange = { alias = it }, label = { Text("Alias") }, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth())
+
+                OutlinedTextField(
+                    value = alias,
+                    onValueChange = { alias = it },
+                    label = { Text("Alias") },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = GreenPrimary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    )
+                )
+
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(value = digits, onValueChange = { if(it.length <= 4) digits = it }, label = { Text("Últimos 4 dígitos") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth())
+
+                OutlinedTextField(
+                    value = digits,
+                    onValueChange = { if(it.length <= 4) digits = it },
+                    label = { Text("Últimos 4 dígitos") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = GreenPrimary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    )
+                )
+
                 Spacer(modifier = Modifier.height(20.dp))
-                Text("Color", fontSize = 12.sp, color = TextGray, modifier = Modifier.align(Alignment.Start))
+
+                Text(
+                    "Color",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    cardColors.forEach { color -> Box(modifier = Modifier.size(36.dp).background(color, CircleShape).clickable { selectedColor = color }.border(2.dp, if(selectedColor == color) TextDark else Color.Transparent, CircleShape)) }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    cardColors.forEach { color ->
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(color, CircleShape)
+                                .clickable { selectedColor = color }
+                                .border(
+                                    2.dp,
+                                    if(selectedColor == color) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                                    CircleShape
+                                )
+                        )
+                    }
                 }
+
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(onClick = { onSave(bankName, alias, digits, colorToHex(selectedColor)) }, enabled = bankName.isNotEmpty() && alias.isNotEmpty() && digits.length == 4, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)) { Text("Guardar", fontWeight = FontWeight.Bold) }
+
+                Button(
+                    onClick = { onSave(bankName, alias, digits, colorToHex(selectedColor)) },
+                    enabled = bankName.isNotEmpty() && alias.isNotEmpty() && digits.length == 4,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
+                ) {
+                    Text("Guardar", fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -416,15 +510,15 @@ fun AccountActionCard(
     subtitle: String,
     icon: ImageVector,
     color: Color,
-    onClick: () -> Unit // Nuevo parámetro
+    onClick: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, color.copy(alpha = 0.2f)),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() } // Acción al tocar
+            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
@@ -432,11 +526,23 @@ fun AccountActionCard(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(44.dp).background(color.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = color, modifier = Modifier.size(22.dp)) }
+                Box(
+                    modifier = Modifier.size(44.dp).background(color.copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = color, modifier = Modifier.size(22.dp))
+                }
                 Spacer(modifier = Modifier.width(16.dp))
-                Column { Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextDark); Text(subtitle, fontSize = 12.sp, color = TextGray) }
+                Column {
+                    Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            Icon(if(title.contains("Cerrar")) Icons.Outlined.ExitToApp else Icons.Outlined.Delete, null, tint = color)
+            Icon(
+                if(title.contains("Cerrar")) Icons.Outlined.ExitToApp else Icons.Outlined.Delete,
+                null,
+                tint = color
+            )
         }
     }
 }

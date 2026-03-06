@@ -2,6 +2,7 @@ package com.example.pocketguard.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.example.pocketguard.data.api.FCMTokenRequest
 import com.example.pocketguard.data.api.NotificationsService
 import com.example.pocketguard.data.api.RetrofitClient
 import com.example.pocketguard.data.exceptions.AuthenticationException
@@ -83,6 +84,56 @@ class NotificationsRepository(private val context: Context) {
         }
     } catch (e: Exception) {
         Log.e("NotificationsRepository", "updateNotificationSettings() - Exception: ${e.message}", e)
+        val mapped = if (e is HttpException && e.code() == 401) AuthenticationException() else e
+        Result.failure(mapped)
+    }
+
+    suspend fun registerFCMToken(fcmToken: String): Result<Boolean> = try {
+        Log.d("NotificationsRepository", "registerFCMToken() - Registrando token FCM...")
+        val request = FCMTokenRequest(fcmToken = fcmToken, platform = "android")
+        val response = notificationsService.registerFCMToken(request, getAuthHeader())
+        if (response.success) {
+            Log.d("NotificationsRepository", "registerFCMToken() - Token registrado correctamente")
+            Result.success(true)
+        } else {
+            Log.e("NotificationsRepository", "registerFCMToken() - Error: ${response.message}")
+            Result.failure(Exception(response.message))
+        }
+    } catch (e: Exception) {
+        Log.e("NotificationsRepository", "registerFCMToken() - Exception: ${e.message}", e)
+        val mapped = if (e is HttpException && e.code() == 401) AuthenticationException() else e
+        Result.failure(mapped)
+    }
+
+    suspend fun removeFCMToken(fcmToken: String): Result<Boolean> = try {
+        Log.d("NotificationsRepository", "removeFCMToken() - Eliminando token FCM...")
+        val request = FCMTokenRequest(fcmToken = fcmToken, platform = "android")
+        val response = notificationsService.removeFCMToken(request, getAuthHeader())
+        if (response.success) {
+            Log.d("NotificationsRepository", "removeFCMToken() - Token eliminado correctamente")
+            Result.success(true)
+        } else {
+            Log.e("NotificationsRepository", "removeFCMToken() - Error: ${response.message}")
+            Result.failure(Exception(response.message))
+        }
+    } catch (e: Exception) {
+        Log.e("NotificationsRepository", "removeFCMToken() - Exception: ${e.message}", e)
+        val mapped = if (e is HttpException && e.code() == 401) AuthenticationException() else e
+        Result.failure(mapped)
+    }
+
+    suspend fun sendTestNotification(): Result<Boolean> = try {
+        Log.d("NotificationsRepository", "sendTestNotification() - Enviando notificación de prueba...")
+        val response = notificationsService.sendTestNotification(getAuthHeader())
+        if (response.success) {
+            Log.d("NotificationsRepository", "sendTestNotification() - Notificación enviada correctamente")
+            Result.success(true)
+        } else {
+            Log.e("NotificationsRepository", "sendTestNotification() - Error: ${response.message}")
+            Result.failure(Exception(response.message))
+        }
+    } catch (e: Exception) {
+        Log.e("NotificationsRepository", "sendTestNotification() - Exception: ${e.message}", e)
         val mapped = if (e is HttpException && e.code() == 401) AuthenticationException() else e
         Result.failure(mapped)
     }

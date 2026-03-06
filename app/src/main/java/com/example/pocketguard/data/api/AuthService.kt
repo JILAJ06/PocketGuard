@@ -34,6 +34,13 @@ interface AuthService {
     suspend fun googleCallback(@Body googleTokenRequest: GoogleTokenRequest): ApiResponse<AuthResponse>
 
     /**
+     * Login con Google desde móvil (Android/iOS)
+     * POST /auth/google/mobile
+     */
+    @POST("auth/google/mobile")
+    suspend fun googleMobileAuth(@Body request: GoogleMobileAuthRequest): ApiResponse<AuthResponse>
+
+    /**
      * Refrescar el access token usando el refresh token
      * POST /auth/refresh
      */
@@ -66,6 +73,10 @@ interface AuthService {
 data class GoogleTokenRequest(
     val idToken: String,
     val accessToken: String? = null
+)
+
+data class GoogleMobileAuthRequest(
+    val idToken: String
 )
 
 data class RefreshTokenRequest(

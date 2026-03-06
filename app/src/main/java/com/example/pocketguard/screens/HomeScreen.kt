@@ -332,15 +332,8 @@ fun UpcomingChargesSection(
 
 @Composable
 fun UpcomingChargeCard(subscription: com.example.pocketguard.data.models.Subscription) {
-    val daysLeft = remember(subscription.next_payment_date) {
-        try {
-            val nextPayment = java.time.LocalDate.parse(subscription.next_payment_date)
-            val today = java.time.LocalDate.now()
-            java.time.temporal.ChronoUnit.DAYS.between(today, nextPayment).toInt()
-        } catch (e: Exception) {
-            0
-        }
-    }
+    // Usar el campo days_until_payment que viene del backend
+    val daysLeft = subscription.days_until_payment
 
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

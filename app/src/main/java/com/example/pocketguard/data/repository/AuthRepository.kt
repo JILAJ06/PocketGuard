@@ -2,6 +2,7 @@ package com.example.pocketguard.data.repository
 
 import android.util.Log
 import com.example.pocketguard.data.api.AuthService
+import com.example.pocketguard.data.api.GoogleMobileAuthRequest
 import com.example.pocketguard.data.api.GoogleTokenRequest
 import com.example.pocketguard.data.api.RefreshTokenRequest
 import com.example.pocketguard.data.models.*
@@ -73,6 +74,34 @@ class AuthRepository(
                 AuthResult.Error(response.message ?: "Error desconocido", response.statusCode)
             }
         } catch (e: Exception) {
+            AuthResult.Error(e.message ?: "Error en la conexión", null)
+        }
+    }
+
+    /**
+     * Login con Google desde móvil (Android/iOS)
+     * Usa el endpoint /auth/google/mobile
+     */
+    suspend fun googleMobileAuth(idToken: String): AuthResult<AuthResponse> {
+        return try {
+            Log.d("AuthRepository", "googleMobileAuth() - Iniciando login con Google")
+            val request = GoogleMobileAuthRequest(idToken)
+            val response = authService.googleMobileAuth(request)
+
+            Log.d("AuthRepository", "googleMobileAuth() - Response success=${response.success}")
+
+            if (response.success && response.data != null) {
+                Log.d("AuthRepository", "googleMobileAuth() - Token recibido, guardando...")
+                tokenManager.saveAccessToken(response.data.accessToken)
+                tokenManager.saveUserId(response.data.user.id)
+                Log.d("AuthRepository", "googleMobileAuth() - Usuario logueado: ${response.data.user.email}")
+                AuthResult.Success(response.data)
+            } else {
+                Log.e("AuthRepository", "googleMobileAuth() - Error: ${response.message}")
+                AuthResult.Error(response.message ?: "Error en autenticación con Google", response.statusCode)
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "googleMobileAuth() - Exception: ${e.message}", e)
             AuthResult.Error(e.message ?: "Error en la conexión", null)
         }
     }

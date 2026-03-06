@@ -195,6 +195,61 @@ class RegisterViewModel(
         _isSuccess.value = false
         _errorMessage.value = ""
     }
+
+    /**
+     * Registro/Login con Google usando el ID Token
+     * (El backend maneja automáticamente si es nuevo usuario o ya existe)
+     */
+    fun loginWithGoogle(idToken: String) {
+        Log.d("RegisterViewModel", "loginWithGoogle() - Iniciando registro/login con Google")
+        _formState.value = _formState.value.copy(isLoading = true)
+        _errorMessage.value = ""
+
+        viewModelScope.launch {
+            try {
+                val result = authRepository.googleMobileAuth(idToken)
+                result.let { authResult ->
+                    when {
+                        authResult is com.example.pocketguard.data.models.AuthResult.Success -> {
+                            Log.d("RegisterViewModel", "loginWithGoogle() - Registro/Login con Google exitoso!")
+                            _isSuccess.value = true
+                            _errorMessage.value = ""
+                        }
+                        authResult is com.example.pocketguard.data.models.AuthResult.Error -> {
+                            Log.e("RegisterViewModel", "loginWithGoogle() - Error: ${authResult.message}")
+                            val errorMsg = when {
+                                authResult.message.contains("Unable to resolve host") ||
+                                authResult.message.contains("Failed to connect") ->
+                                    "No se pudo conectar al servidor. Verifica que tu backend esté corriendo en 192.168.110.230:3001"
+                                authResult.message.contains("timeout") ->
+                                    "Tiempo de espera agotado. Verifica tu conexión"
+                                else -> authResult.message
+                            }
+                            _errorMessage.value = errorMsg
+                            _isSuccess.value = false
+                        }
+                        else -> {
+                            Log.e("RegisterViewModel", "loginWithGoogle() - Estado desconocido")
+                            _errorMessage.value = "Error desconocido al registrarse con Google"
+                            _isSuccess.value = false
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("RegisterViewModel", "loginWithGoogle() - Exception: ${e.message}", e)
+                _errorMessage.value = "Error de conexión: ${e.message}"
+                _isSuccess.value = false
+            } finally {
+                _formState.value = _formState.value.copy(isLoading = false)
+            }
+        }
+    }
+
+    fun setError(message: String) {
+        _errorMessage.value = message
+        _formState.value = _formState.value.copy(isLoading = false)
+        _isSuccess.value = false
+    }
 }
 
 class RegisterViewModelFactory(

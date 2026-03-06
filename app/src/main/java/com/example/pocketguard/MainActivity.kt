@@ -1,8 +1,12 @@
 package com.example.pocketguard
 
+import android.app.Activity
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
@@ -20,11 +24,37 @@ import com.example.pocketguard.presentation.viewmodel.PreferencesViewModel
 import com.example.pocketguard.presentation.viewmodel.RegisterViewModel
 import com.example.pocketguard.screens.*
 import com.example.pocketguard.ui.theme.PocketGuardTheme
+import com.example.pocketguard.utils.FCMTokenManager
+import com.example.pocketguard.utils.GoogleSignInHelper
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private lateinit var fcmTokenManager: FCMTokenManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ServiceLocator.initializeServices(applicationContext)
+
+        // Inicializar FCMTokenManager
+        fcmTokenManager = FCMTokenManager(applicationContext)
+
+        // Inicializar FCM si hay sesión activa
+        val sessionManager = ServiceLocator.getSessionManager()
+        if (sessionManager.isSessionActive() && !sessionManager.isTokenExpired()) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    fcmTokenManager.initializeFCM()
+                    Log.d("MainActivity", "FCM inicializado correctamente en onCreate")
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Error al inicializar FCM en onCreate: ${e.message}", e)
+                }
+            }
+        }
+
         setContent {
             val preferencesViewModel: PreferencesViewModel = viewModel(
                 factory = ServiceLocator.getPreferencesViewModelFactory()
@@ -43,16 +73,30 @@ class MainActivity : ComponentActivity() {
             }
 
             PocketGuardTheme(darkTheme = darkTheme) {
-                PocketGuardNavigation()
+                PocketGuardNavigation(fcmTokenManager = fcmTokenManager)
             }
         }
     }
 }
 
 @Composable
-fun PocketGuardNavigation() {
+fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
     val navController = rememberNavController()
     val sessionManager = ServiceLocator.getSessionManager()
+
+    // Función para inicializar FCM desde composables
+    val initializeFCM = remember {
+        {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    fcmTokenManager.initializeFCM()
+                    Log.d("PocketGuardNavigation", "FCM inicializado correctamente")
+                } catch (e: Exception) {
+                    Log.e("PocketGuardNavigation", "Error al inicializar FCM: ${e.message}", e)
+                }
+            }
+        }
+    }
 
     // Verificar si la sesión está activa Y el token no ha expirado
     val isValidSession = sessionManager.isSessionActive() && !sessionManager.isTokenExpired()
@@ -93,15 +137,62 @@ fun PocketGuardNavigation() {
                     factory = ServiceLocator.getLoginViewModelFactory()
                 )
 
+                // Google Sign-In Helper
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val googleSignInHelper = remember { GoogleSignInHelper(context) }
+
+                // Launcher para Google Sign-In
+                val googleSignInLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.StartActivityForResult()
+                ) { result ->
+                    Log.d("MainActivity", "Google Sign-In result: resultCode=${result.resultCode}")
+
+                    if (result.resultCode == Activity.RESULT_OK) {
+                        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                        try {
+                            val account = task.getResult(ApiException::class.java)
+                            val idToken = account?.idToken
+
+                            Log.d("MainActivity", "Account: ${account?.email}, idToken: ${if (idToken != null) "presente" else "null"}")
+
+                            if (idToken != null) {
+                                Log.d("MainActivity", "Google Sign-In exitoso, enviando idToken al backend")
+                                loginViewModel.loginWithGoogle(idToken)
+                            } else {
+                                Log.e("MainActivity", "No se pudo obtener idToken de Google")
+                                loginViewModel.setError("Error: No se pudo obtener token de Google")
+                            }
+                        } catch (e: ApiException) {
+                            Log.e("MainActivity", "Error en Google Sign-In: ${e.statusCode} - ${e.message}", e)
+                            val errorMsg = when (e.statusCode) {
+                                10 -> "Error de configuración. Verifica Google Cloud Console"
+                                12501 -> "Login cancelado"
+                                7 -> "Error de red. Verifica tu conexión"
+                                else -> "Error al iniciar sesión con Google (${e.statusCode})"
+                            }
+                            loginViewModel.setError(errorMsg)
+                        }
+                    } else {
+                        Log.d("MainActivity", "Google Sign-In cancelado o falló")
+                    }
+                }
+
                 LoginScreen(
                     viewModel = loginViewModel,
                     onLoginSuccess = {
+                        // Inicializar FCM después de login exitoso
+                        initializeFCM()
+
                         navController.navigate("inicio") {
                             popUpTo("login") { inclusive = true }
                         }
                     },
                     onRegisterLinkClick = { navController.navigate("register") },
-                    onGoogleClick = { }
+                    onGoogleClick = {
+                        Log.d("MainActivity", "Iniciando Google Sign-In")
+                        val signInIntent = googleSignInHelper.getSignInIntent()
+                        googleSignInLauncher.launch(signInIntent)
+                    }
                 )
             }
 
@@ -110,15 +201,62 @@ fun PocketGuardNavigation() {
                     factory = ServiceLocator.getRegisterViewModelFactory()
                 )
 
+                // Google Sign-In Helper para registro
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val googleSignInHelper = remember { GoogleSignInHelper(context) }
+
+                // Launcher para Google Sign-In en registro
+                val googleSignInLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.StartActivityForResult()
+                ) { result ->
+                    Log.d("MainActivity", "Google Sign-In result (registro): resultCode=${result.resultCode}")
+
+                    if (result.resultCode == Activity.RESULT_OK) {
+                        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                        try {
+                            val account = task.getResult(ApiException::class.java)
+                            val idToken = account?.idToken
+
+                            Log.d("MainActivity", "Account (registro): ${account?.email}, idToken: ${if (idToken != null) "presente" else "null"}")
+
+                            if (idToken != null) {
+                                Log.d("MainActivity", "Google Sign-In exitoso en registro, enviando idToken al backend")
+                                registerViewModel.loginWithGoogle(idToken)
+                            } else {
+                                Log.e("MainActivity", "No se pudo obtener idToken de Google en registro")
+                                registerViewModel.setError("Error: No se pudo obtener token de Google")
+                            }
+                        } catch (e: ApiException) {
+                            Log.e("MainActivity", "Error en Google Sign-In en registro: ${e.statusCode} - ${e.message}", e)
+                            val errorMsg = when (e.statusCode) {
+                                10 -> "Error de configuración. Verifica Google Cloud Console"
+                                12501 -> "Login cancelado"
+                                7 -> "Error de red. Verifica tu conexión"
+                                else -> "Error al iniciar sesión con Google (${e.statusCode})"
+                            }
+                            registerViewModel.setError(errorMsg)
+                        }
+                    } else {
+                        Log.d("MainActivity", "Google Sign-In cancelado o falló en registro")
+                    }
+                }
+
                 SignUpScreen(
                     viewModel = registerViewModel,
                     onRegisterSuccess = {
+                        // Inicializar FCM después de registro exitoso
+                        initializeFCM()
+
                         navController.navigate("inicio") {
                             popUpTo("register") { inclusive = true }
                         }
                     },
                     onLoginLinkClick = { navController.navigate("login") },
-                    onGoogleClick = { }
+                    onGoogleClick = {
+                        Log.d("MainActivity", "Iniciando Google Sign-In desde registro")
+                        val signInIntent = googleSignInHelper.getSignInIntent()
+                        googleSignInLauncher.launch(signInIntent)
+                    }
                 )
             }
 
@@ -212,3 +350,4 @@ fun PocketGuardNavigation() {
         }
     }
 }
+
