@@ -50,11 +50,25 @@ fun NewExpenseModal(
     categories: List<ExpenseCategoryData>,
     onDismiss: () -> Unit,
     onSave: (String, String, String, String) -> Unit, // Desc, Monto, Categoria, Fecha
-    onCreateCategory: (String, String?) -> Unit // (Opcional, ya que lo manejamos interno ahora)
+    onCreateCategory: (String, String?, String?) -> Unit = { _, _, _ -> }, // name, colorHex, iconName
+    // NUEVOS PARÁMETROS PARA EDICIÓN
+    initialExpenseId: String? = null,
+    initialDescription: String = "",
+    initialAmount: String = "",
+    initialCategoryId: String = "",
+    initialDate: String = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
 ) {
-    var description by remember { mutableStateOf("") }
-    var amount by remember { mutableStateOf("") }
-    var selectedCategoryIndex by remember { mutableStateOf(0) }
+    var description by remember { mutableStateOf(initialDescription) }
+    var amount by remember { mutableStateOf(initialAmount) }
+
+    // Preseleccionar categoría si estamos editando
+    var selectedCategoryIndex by remember {
+        mutableStateOf(
+            if (initialCategoryId.isNotEmpty()) {
+                categories.indexOfFirst { it.id == initialCategoryId }.takeIf { it >= 0 } ?: 0
+            } else 0
+        )
+    }
 
     // --- ESTADO PARA NUEVA CATEGORÍA ---
     var showNewCategoryDialog by remember { mutableStateOf(false) }
@@ -63,10 +77,15 @@ fun NewExpenseModal(
     var showDatePicker by remember { mutableStateOf(false) }
 
     var selectedDateDisplay by remember {
-        mutableStateOf(LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
+        mutableStateOf(initialDate)
     }
 
     val datePickerState = rememberDatePickerState()
+
+    val isEditMode = initialExpenseId != null
+    val modalTitle = if (isEditMode) "Editar Gasto" else "Nuevo Gasto"
+    val modalSubtitle = if (isEditMode) "Actualiza la información" else "Registra tu compra"
+    val buttonText = if (isEditMode) "Guardar Cambios" else "Agregar Gasto"
 
     // Calendario Logica
     if (showDatePicker) {
@@ -92,8 +111,9 @@ fun NewExpenseModal(
     if (showNewCategoryDialog) {
         NewCategoryDialog(
             onDismiss = { showNewCategoryDialog = false },
-            onSave = { name, _, color ->
-                onCreateCategory(name, colorToHex(color))
+            onSave = { name, icon, color ->
+                val iconName = com.example.pocketguard.utils.IconMapper.getNameFromIcon(icon)
+                onCreateCategory(name, colorToHex(color), iconName)
                 showNewCategoryDialog = false
             }
         )
@@ -113,10 +133,13 @@ fun NewExpenseModal(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(48.dp).background(GreenPrimary, RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = White)
+                        Icon(if (isEditMode) Icons.Default.Edit else Icons.Default.Add, contentDescription = null, tint = White)
                     }
                     Spacer(modifier = Modifier.width(16.dp))
-                    Column { Text("Nuevo Gasto", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurface); Text("Registra tu compra", fontSize = 14.sp, color = TextGray) }
+                    Column {
+                        Text(modalTitle, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurface)
+                        Text(modalSubtitle, fontSize = 14.sp, color = TextGray)
+                    }
                 }
                 IconButton(onClick = onDismiss, modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)) { Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
@@ -212,7 +235,7 @@ fun NewExpenseModal(
                     shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
                     enabled = amount.isNotEmpty() && description.isNotEmpty() && categories.isNotEmpty()
                 ) {
-                    Text("Agregar Gasto", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(buttonText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(40.dp))
             }

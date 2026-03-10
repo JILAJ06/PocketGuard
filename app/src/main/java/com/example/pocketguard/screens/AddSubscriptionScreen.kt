@@ -123,8 +123,9 @@ fun AddSubscriptionScreen(
     if (showNewCategoryDialog) {
         NewCategoryDialog(
             onDismiss = { showNewCategoryDialog = false },
-            onSave = { name, _, color ->
-                categoriesViewModel.createCategory(name, null, colorToHex(color))
+            onSave = { name, icon, color ->
+                val iconName = com.example.pocketguard.utils.IconMapper.getNameFromIcon(icon)
+                categoriesViewModel.createCategory(name, null, iconName, colorToHex(color))
                 showNewCategoryDialog = false
             }
         )

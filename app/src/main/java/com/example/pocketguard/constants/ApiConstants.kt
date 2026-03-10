@@ -1,7 +1,7 @@
 package com.example.pocketguard.constants
 
 object ApiConstants {
-    const val BASE_URL = "http://localhost:3001/api/v1/"
+    const val BASE_URL = "http://192.168.110.230:3001/api/v1/"
     const val GOOGLE_CLIENT_ID = "948325541313-gr9dhia5r6gidgejehr6si9s89r0tdv2.apps.googleusercontent.com"
     const val AUTH_ENDPOINT = "auth"
 

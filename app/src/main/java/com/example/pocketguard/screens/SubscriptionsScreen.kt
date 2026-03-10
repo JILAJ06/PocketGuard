@@ -10,7 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import com.example.pocketguard.data.models.Subscription
 import com.example.pocketguard.presentation.di.ServiceLocator
 import com.example.pocketguard.presentation.viewmodel.SubscriptionsViewModel
@@ -31,7 +33,34 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import androidx.compose.ui.tooling.preview.Preview
 
-fun getCategoryIcon(categoryName: String): ImageVector {
+/**
+ * Obtener icono de categoría desde el campo icon_name guardado en el backend
+ * Si no existe, usa mapeo por nombre de categoría como fallback
+ */
+fun getCategoryIcon(category: com.example.pocketguard.data.models.Category): ImageVector {
+    // Prioridad 1: Usar icon_name si existe
+    if (!category.icon_name.isNullOrEmpty()) {
+        return com.example.pocketguard.utils.IconMapper.getIconByName(category.icon_name)
+    }
+
+    // Fallback: Mapeo por nombre de categoría (para categorías antiguas)
+    return when (category.name.lowercase()) {
+        "streaming", "entretenimiento" -> Icons.Default.Movie
+        "música", "music" -> Icons.Default.MusicNote
+        "transporte" -> Icons.Default.DirectionsCar
+        "comida", "alimentos", "food" -> Icons.Default.Restaurant
+        "gimnasio", "fitness", "gym" -> Icons.Default.FitnessCenter
+        "educación", "education" -> Icons.Default.School
+        "salud", "health" -> Icons.Default.Favorite
+        "compras", "shopping" -> Icons.Default.ShoppingCart
+        "hogar", "home" -> Icons.Default.Home
+        "servicios", "services" -> Icons.Default.Build
+        else -> Icons.Default.Category
+    }
+}
+
+// Helper adicional para compatibilidad
+fun getCategoryIconByName(categoryName: String): ImageVector {
     return when (categoryName.lowercase()) {
         "streaming", "entretenimiento" -> Icons.Default.Movie
         "música", "music" -> Icons.Default.MusicNote
@@ -81,7 +110,12 @@ fun SubscriptionsScreen(
     val cardsState by cardsViewModel.state.collectAsStateWithLifecycle()
     val categoriesState by categoriesViewModel.state.collectAsStateWithLifecycle()
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // Recargar datos cada vez que se muestra la pantalla
     LaunchedEffect(Unit) {
+        viewModel.loadSubscriptions()
         cardsViewModel.loadCards()
         categoriesViewModel.loadCategories()
     }
@@ -89,6 +123,29 @@ fun SubscriptionsScreen(
     LaunchedEffect(state.isUnauthorized) {
         if (state.isUnauthorized) {
             onAuthExpired()
+        }
+    }
+
+    // Mostrar errores con Snackbar
+    LaunchedEffect(state.errorMessage) {
+        if (state.errorMessage.isNotEmpty()) {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = state.errorMessage,
+                    duration = SnackbarDuration.Short
+                )
+            }
+        }
+    }
+
+    LaunchedEffect(categoriesState.errorMessage) {
+        if (categoriesState.errorMessage.isNotEmpty()) {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = categoriesState.errorMessage,
+                    duration = SnackbarDuration.Short
+                )
+            }
         }
     }
 
@@ -118,8 +175,9 @@ fun SubscriptionsScreen(
     val categories = remember(categoriesState.categories) {
         categoriesState.categories.map { cat ->
             com.example.pocketguard.components.SubCategoryData(
+                id = cat.id, // Agregar ID para referencia
                 name = cat.name,
-                icon = getCategoryIcon(cat.name),
+                icon = getCategoryIcon(cat), // Pasar objeto completo
                 color = Color(android.graphics.Color.parseColor(cat.color_hex ?: "#4A90E2"))
             )
         }
@@ -129,6 +187,43 @@ fun SubscriptionsScreen(
         state.subscriptions.map { sub ->
             val currentCategory = categoriesState.categories.firstOrNull { it.name == sub.category_name }
             val categoryColor = currentCategory?.color_hex ?: sub.category_color
+            val categoryIcon = if (currentCategory != null) {
+                getCategoryIcon(currentCategory)
+            } else {
+                getCategoryIconByName(sub.category_name)
+            }
+
+            // Calcular días correctamente - si es negativo, calcular próximo pago
+            val actualDaysLeft = if (sub.days_until_payment < 0) {
+                // La suscripción venció, calcular cuántos días faltan para el PRÓXIMO pago
+                val today = LocalDate.now()
+                val lastPayment = LocalDate.parse(sub.next_payment_date)
+
+                // Calcular siguiente fecha de pago según el ciclo
+                val nextPayment = when (sub.billing_cycle.lowercase()) {
+                    "daily", "diario" -> lastPayment.plusDays(1)
+                    "weekly", "semanal" -> lastPayment.plusWeeks(1)
+                    "monthly", "mensual" -> lastPayment.plusMonths(1)
+                    "yearly", "anual" -> lastPayment.plusYears(1)
+                    else -> lastPayment.plusMonths(1) // Default mensual
+                }
+
+                // Si aún sigue vencido, seguir sumando ciclos hasta llegar al futuro
+                var calculatedNext = nextPayment
+                while (calculatedNext.isBefore(today)) {
+                    calculatedNext = when (sub.billing_cycle.lowercase()) {
+                        "daily", "diario" -> calculatedNext.plusDays(1)
+                        "weekly", "semanal" -> calculatedNext.plusWeeks(1)
+                        "monthly", "mensual" -> calculatedNext.plusMonths(1)
+                        "yearly", "anual" -> calculatedNext.plusYears(1)
+                        else -> calculatedNext.plusMonths(1)
+                    }
+                }
+
+                java.time.temporal.ChronoUnit.DAYS.between(today, calculatedNext).toInt()
+            } else {
+                sub.days_until_payment
+            }
 
             SubscriptionUI(
                 id = sub.subscription_id,
@@ -137,8 +232,8 @@ fun SubscriptionsScreen(
                 cycle = sub.billing_cycle,
                 nextDate = sub.next_payment_date,
                 categoryName = sub.category_name,
-                daysLeft = sub.days_until_payment,
-                icon = Icons.Default.CreditCard,
+                daysLeft = actualDaysLeft,
+                icon = categoryIcon,
                 color = Color(android.graphics.Color.parseColor(categoryColor)),
                 cardAlias = sub.card_alias,
                 cardLastDigits = sub.card_last_digits
@@ -225,6 +320,14 @@ fun SubscriptionsScreen(
                     cardId = cardId
                 )
                 showAddModal = false
+            },
+            onCategoryCreated = {
+                // Recargar categorías cuando se crea una nueva
+                categoriesViewModel.loadCategories()
+            },
+            onCreateCategory = { name, colorHex, iconName ->
+                // Crear categoría en el backend
+                categoriesViewModel.createCategory(name, null, iconName, colorHex)
             }
         )
     }
@@ -275,12 +378,21 @@ fun SubscriptionsScreen(
                 )
                 showEditModal = false
                 subscriptionToEdit = null
+            },
+            onCategoryCreated = {
+                // Recargar categorías cuando se crea una nueva
+                categoriesViewModel.loadCategories()
+            },
+            onCreateCategory = { name, colorHex, iconName ->
+                // Crear categoría en el backend
+                categoriesViewModel.createCategory(name, null, iconName, colorHex)
             }
         )
     }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddModal = true },
@@ -301,26 +413,87 @@ fun SubscriptionsScreen(
             // Header con un solo $
             SubscriptionsHeader(total = "$${String.format("%.2f", state.totalMonthly)}")
 
-            if (state.isLoading) {
+            if (state.isLoading && subscriptions.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = GreenPrimary)
                 }
-            } else if (state.errorMessage.isNotEmpty()) {
+            } else if (state.errorMessage.isNotEmpty() && subscriptions.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(state.errorMessage, color = ErrorRed, fontSize = 14.sp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(state.errorMessage, color = ErrorRed, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { viewModel.loadSubscriptions() }) {
+                            Text("Reintentar")
+                        }
+                    }
                 }
             } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    item {
-                        Text("Mis Servicios", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onBackground)
+                var isRefreshing by remember { mutableStateOf(false) }
+
+                androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        isRefreshing = true
+                        scope.launch {
+                            viewModel.loadSubscriptions()
+                            categoriesViewModel.loadCategories()
+                            cardsViewModel.loadCards()
+                            kotlinx.coroutines.delay(500)
+                            isRefreshing = false
+                        }
                     }
-                    items(subscriptions) { sub ->
-                        SubscriptionPremiumCard(
-                            subscription = sub,
-                            onClick = {
+                ) {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item {
+                            Text("Mis Servicios", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onBackground)
+                        }
+
+                        if (subscriptions.isEmpty()) {
+                            item {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 60.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Category,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(80.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        "No tienes suscripciones",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        "Agrega tu primera suscripción para\nempezar a gestionar tus gastos",
+                                        fontSize = 14.sp,
+                                        color = TextGray,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                    Button(
+                                        onClick = { showAddModal = true },
+                                        colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Agregar Suscripción")
+                                    }
+                                }
+                            }
+                        }
+
+                        items(subscriptions) { sub ->
+                            SubscriptionPremiumCard(
+                                subscription = sub,
+                                onClick = {
                                 // ABRIR MODAL DE EDICIÓN
                                 subscriptionToEdit = sub
                                 showEditModal = true
@@ -333,6 +506,7 @@ fun SubscriptionsScreen(
                         )
                     }
                     item { Spacer(modifier = Modifier.height(80.dp)) }
+                }
                 }
             }
         }
@@ -449,19 +623,25 @@ fun SubscriptionPremiumCard(
             Column(horizontalAlignment = Alignment.End) {
                 Text("-$${subscription.price}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
                 Spacer(modifier = Modifier.height(8.dp))
-                // Badge de días
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(if (isUrgent) ErrorRed.copy(alpha = 0.1f) else GreenPrimary.copy(alpha = 0.1f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "en ${subscription.daysLeft} días",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isUrgent) ErrorRed else GreenPrimary
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (isUrgent) ErrorRed.copy(alpha = 0.1f) else GreenPrimary.copy(alpha = 0.1f))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        val daysText = when (subscription.daysLeft) {
+                            0 -> "Hoy"
+                            1 -> "Mañana"
+                            else -> "en ${subscription.daysLeft} días"
+                        }
+                        Text(
+                            text = daysText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isUrgent) ErrorRed else GreenPrimary
+                        )
+                    }
                 }
             }
         }

@@ -97,6 +97,34 @@ class ExpensesViewModel(private val repository: ExpensesRepository) : ViewModel(
             }
         }
     }
+
+    fun updateExpense(id: String, name: String?, amount: Double?, expenseDate: String?, categoryId: String?) {
+        viewModelScope.launch {
+            Log.d("ExpensesViewModel", "updateExpense() - ID: $id")
+            _state.value = _state.value.copy(isLoading = true, errorMessage = "", isUnauthorized = false)
+            val request = com.example.pocketguard.data.models.UpdateExpenseRequest(
+                name = name,
+                amount = amount,
+                expense_date = expenseDate,
+                category_id = categoryId
+            )
+            repository.updateExpense(id, request).onSuccess { expense ->
+                Log.d("ExpensesViewModel", "updateExpense() - Gasto actualizado")
+                _state.value = _state.value.copy(
+                    expenses = _state.value.expenses.map { if (it.id == id) expense else it },
+                    isLoading = false
+                )
+            }.onFailure { error ->
+                Log.e("ExpensesViewModel", "updateExpense() - Error: ${error.message}")
+                val unauthorized = error is com.example.pocketguard.data.exceptions.AuthenticationException
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    errorMessage = if (unauthorized) "" else (error.message ?: "Error al actualizar gasto"),
+                    isUnauthorized = unauthorized
+                )
+            }
+        }
+    }
 }
 
 class ExpensesViewModelFactory(private val repository: ExpensesRepository) : ViewModelProvider.Factory {

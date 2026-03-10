@@ -56,6 +56,20 @@ class TokenManager(context: Context) {
         return sharedPreferences.getString(ApiConstants.USER_ID_KEY, null)
     }
 
+    /**
+     * Guardar si el usuario se autenticó con Google
+     */
+    fun saveIsGoogleAuth(isGoogle: Boolean) {
+        sharedPreferences.edit().putBoolean("is_google_auth", isGoogle).apply()
+    }
+
+    /**
+     * Verificar si el usuario se autenticó con Google
+     */
+    fun isGoogleAuth(): Boolean {
+        return sharedPreferences.getBoolean("is_google_auth", false)
+    }
+
     fun hasToken(): Boolean {
         return getAccessToken() != null && getAccessToken()!!.isNotEmpty()
     }
@@ -73,6 +87,7 @@ class TokenManager(context: Context) {
             remove(ApiConstants.ACCESS_TOKEN_KEY)
             remove(ApiConstants.REFRESH_TOKEN_KEY)
             remove(ApiConstants.USER_ID_KEY)
+            remove("is_google_auth")
             apply()
         }
     }

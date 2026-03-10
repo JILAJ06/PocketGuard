@@ -46,6 +46,7 @@ import com.example.pocketguard.components.AddCardDialog
 import com.example.pocketguard.components.EditCardDialog
 import com.example.pocketguard.components.MiniCreditCard
 import com.example.pocketguard.components.PaymentCard
+import com.example.pocketguard.data.models.AuthResult
 import com.example.pocketguard.presentation.di.ServiceLocator
 import com.example.pocketguard.presentation.viewmodel.BanksViewModel
 import com.example.pocketguard.presentation.viewmodel.CardsViewModel
@@ -93,7 +94,8 @@ fun SettingsScreen(
 
     var isAddingCategory by remember { mutableStateOf(false) }
     var newCatName by remember { mutableStateOf("") }
-    var newCatColor by remember { mutableStateOf(Color(0xFF03A9F4)) }
+    var newCatColor by remember { mutableStateOf(Color(0xFFE74C3C)) }
+    var newCatIcon by remember { mutableStateOf(Icons.Outlined.Category) }
     var editingCategoryId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -116,6 +118,8 @@ fun SettingsScreen(
     var cardToEdit by remember { mutableStateOf<com.example.pocketguard.data.models.Card?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var deletePasswordInput by remember { mutableStateOf("") }
+    var deleteErrorMessage by remember { mutableStateOf("") }
 
     LaunchedEffect(state.preferences) {
         state.preferences?.let { prefs ->
@@ -361,6 +365,43 @@ fun SettingsScreen(
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
+                            Text("Icono", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextGray)
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            val availableIcons = listOf(
+                                Icons.Outlined.Restaurant, Icons.Outlined.DirectionsCar, Icons.Outlined.ShoppingCart,
+                                Icons.Outlined.Home, Icons.Outlined.Movie, Icons.Outlined.MusicNote,
+                                Icons.Outlined.FitnessCenter, Icons.Outlined.School, Icons.Outlined.LocalCafe,
+                                Icons.Outlined.Flight, Icons.Outlined.Category
+                            )
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(availableIcons) { icon ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .background(
+                                                if(newCatIcon == icon) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                                CircleShape
+                                            )
+                                            .border(
+                                                width = if(newCatIcon == icon) 2.dp else 0.dp,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                shape = CircleShape
+                                            )
+                                            .clickable { newCatIcon = icon },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            icon,
+                                            contentDescription = null,
+                                            tint = if(newCatIcon == icon) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
                             Text("Color", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextGray)
                             Spacer(modifier = Modifier.height(8.dp))
 
@@ -387,22 +428,29 @@ fun SettingsScreen(
                                     if(newCatName.isNotEmpty()){
                                         val argb = newCatColor.toArgb()
                                         val colorHex = String.format("#%06X", (argb and 0xFFFFFF))
+                                        val iconName = com.example.pocketguard.utils.IconMapper.getNameFromIcon(newCatIcon)
+
                                         if (editingCategoryId != null) {
+                                            // Editar categoría existente
                                             categoriesViewModel.updateCategory(
                                                 id = editingCategoryId!!,
                                                 name = newCatName,
                                                 iconUrl = null,
+                                                iconName = iconName,
                                                 colorHex = colorHex
                                             )
                                             editingCategoryId = null
                                         } else {
+                                            // Crear nueva categoría
                                             categoriesViewModel.createCategory(
                                                 name = newCatName,
                                                 iconUrl = null,
+                                                iconName = iconName,
                                                 colorHex = colorHex
                                             )
                                         }
                                         newCatName = ""
+                                        newCatIcon = Icons.Outlined.Category
                                         isAddingCategory = false
                                     }
                                 },
@@ -640,29 +688,131 @@ fun SettingsScreen(
     }
 
     if (showDeleteDialog) {
+        val authRepository = ServiceLocator.getAuthRepository()
+        val isGoogleUser = authRepository.isGoogleUser()
+
         AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
+            onDismissRequest = {
+                showDeleteDialog = false
+                deletePasswordInput = ""
+                deleteErrorMessage = ""
+            },
             containerColor = MaterialTheme.colorScheme.surface,
             icon = { Icon(Icons.Outlined.Warning, null, tint = ErrorRed) },
             title = { Text("Eliminar Cuenta", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface) },
-            text = { Text("¿Estás completamente seguro? Esta acción eliminará permanentemente todos tus datos.", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            text = {
+                Column {
+                    Text(
+                        "¿Estás completamente seguro? Esta acción eliminará permanentemente todos tus datos.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (!isGoogleUser) {
+                        // Solo pedir password si NO es usuario de Google
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Por seguridad, ingresa tu contraseña:",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = deletePasswordInput,
+                            onValueChange = {
+                                deletePasswordInput = it
+                                deleteErrorMessage = ""
+                            },
+                            placeholder = { Text("Contraseña") },
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = GreenPrimary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                            ),
+                            isError = deleteErrorMessage.isNotEmpty()
+                        )
+                        if (deleteErrorMessage.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                deleteErrorMessage,
+                                color = ErrorRed,
+                                fontSize = 12.sp
+                            )
+                        }
+                    } else {
+                        // Usuario de Google: No se requiere password
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Info,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Cuenta vinculada con Google",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
-                        showDeleteDialog = false
-                        val authRepository = ServiceLocator.getAuthRepository()
+                        // Validar password solo si NO es Google
+                        if (!isGoogleUser && deletePasswordInput.isEmpty()) {
+                            deleteErrorMessage = "La contraseña es requerida"
+                            return@Button
+                        }
+
                         coroutineScope.launch {
-                            authRepository.deleteAccount()
-                            ServiceLocator.getSessionManager().clearSession()
-                            onLogout()
+                            // Para usuarios de Google, enviar password vacío o "google_auth"
+                            val passwordToSend = if (isGoogleUser) "google_auth" else deletePasswordInput
+                            val result = authRepository.deleteAccount(passwordToSend)
+                            when (result) {
+                                is AuthResult.Success -> {
+                                    ServiceLocator.getSessionManager().clearSession()
+                                    showDeleteDialog = false
+                                    deletePasswordInput = ""
+                                    deleteErrorMessage = ""
+                                    onLogout()
+                                }
+                                is AuthResult.Error -> {
+                                    deleteErrorMessage = result.message
+                                }
+                                else -> {}
+                            }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ErrorRed)
+                    colors = ButtonDefaults.buttonColors(containerColor = ErrorRed),
+                    enabled = isGoogleUser || deletePasswordInput.isNotEmpty()
                 ) {
-                    Text("Eliminar", fontWeight = FontWeight.Bold)
+                    Text("Eliminar Permanentemente", fontWeight = FontWeight.Bold)
                 }
             },
-            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurface) } }
+            dismissButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    deletePasswordInput = ""
+                    deleteErrorMessage = ""
+                }) {
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurface)
+                }
+            }
         )
     }
 }

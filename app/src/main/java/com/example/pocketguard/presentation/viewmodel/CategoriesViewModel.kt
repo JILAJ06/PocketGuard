@@ -51,11 +51,16 @@ class CategoriesViewModel(private val repository: CategoriesRepository) : ViewMo
         }
     }
 
-    fun createCategory(name: String, iconUrl: String?, colorHex: String?) {
+    fun createCategory(name: String, iconUrl: String?, iconName: String?, colorHex: String?) {
         viewModelScope.launch {
-            Log.d("CategoriesViewModel", "createCategory() - Nombre: $name")
+            Log.d("CategoriesViewModel", "createCategory() - Nombre: $name, IconName: $iconName")
             _state.value = _state.value.copy(isLoading = true, errorMessage = "", isUnauthorized = false)
-            val request = CreateCategoryRequest(name = name, icon_url = iconUrl, color_hex = colorHex)
+            val request = CreateCategoryRequest(
+                name = name,
+                icon_url = iconUrl,
+                icon_name = iconName,
+                color_hex = colorHex
+            )
             repository.createCategory(request).onSuccess { category ->
                 Log.d("CategoriesViewModel", "createCategory() - Categoría creada: ${category.id}")
                 val updatedCategories = _state.value.categories + category
@@ -77,11 +82,16 @@ class CategoriesViewModel(private val repository: CategoriesRepository) : ViewMo
         }
     }
 
-    fun updateCategory(id: String, name: String?, iconUrl: String?, colorHex: String?) {
+    fun updateCategory(id: String, name: String?, iconUrl: String?, iconName: String?, colorHex: String?) {
         viewModelScope.launch {
-            Log.d("CategoriesViewModel", "updateCategory() - ID: $id")
+            Log.d("CategoriesViewModel", "updateCategory() - ID: $id, IconName: $iconName")
             _state.value = _state.value.copy(isLoading = true, errorMessage = "", isUnauthorized = false)
-            val request = UpdateCategoryRequest(name = name, icon_url = iconUrl, color_hex = colorHex)
+            val request = UpdateCategoryRequest(
+                name = name,
+                icon_url = iconUrl,
+                icon_name = iconName,
+                color_hex = colorHex
+            )
             repository.updateCategory(id, request).onSuccess { category ->
                 Log.d("CategoriesViewModel", "updateCategory() - Categoría actualizada")
                 val updatedCategories = _state.value.categories.map { if (it.id == id) category else it }

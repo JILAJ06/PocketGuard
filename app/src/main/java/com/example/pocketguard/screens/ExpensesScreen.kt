@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import com.example.pocketguard.components.ExpenseCategoryData
 import com.example.pocketguard.components.NewExpenseModal
 import com.example.pocketguard.data.models.Expense
@@ -68,7 +70,11 @@ fun ExpensesScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val categoriesState by categoriesViewModel.state.collectAsStateWithLifecycle()
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     LaunchedEffect(Unit) {
+        viewModel.loadExpenses()
         categoriesViewModel.loadCategories()
     }
 
@@ -78,7 +84,21 @@ fun ExpensesScreen(
         }
     }
 
+    // Snackbars para errores
+    LaunchedEffect(state.errorMessage) {
+        if (state.errorMessage.isNotEmpty()) {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = state.errorMessage,
+                    duration = SnackbarDuration.Short
+                )
+            }
+        }
+    }
+
     var showNewExpenseModal by remember { mutableStateOf(false) }
+    var showEditExpenseModal by remember { mutableStateOf(false) }
+    var expenseToEdit by remember { mutableStateOf<ExpenseUI?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
 
@@ -97,6 +117,11 @@ fun ExpensesScreen(
         state.expenses.map { expense ->
             val currentCategory = categoriesState.categories.firstOrNull { it.name == expense.categoryName }
             val categoryColor = currentCategory?.color_hex ?: expense.categoryColor
+            val categoryIcon = if (currentCategory != null) {
+                com.example.pocketguard.utils.IconMapper.getIconByName(currentCategory.icon_name)
+            } else {
+                Icons.Outlined.Category
+            }
 
             ExpenseUI(
                 id = expense.id,
@@ -105,7 +130,7 @@ fun ExpensesScreen(
                 amount = "-$${String.format("%.2f", expense.amount)}",
                 amountValue = expense.amount,
                 date = expense.expenseDate.substring(5, 10).replace("-", "-"),
-                icon = Icons.Outlined.ShoppingCart,
+                icon = categoryIcon,
                 color = Color(android.graphics.Color.parseColor(categoryColor))
             )
         }
@@ -116,12 +141,19 @@ fun ExpensesScreen(
 
     var selectedFilter by remember { mutableStateOf("Todas") }
     var selectedDayIndex by remember { mutableStateOf<Int?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(dynamicFilters) {
         if (selectedFilter != "Todas" && selectedFilter !in usedCategories) selectedFilter = "Todas"
     }
 
-    val filteredExpenses = if (selectedFilter == "Todas") expenses else expenses.filter { it.category == selectedFilter }
+    val filteredExpenses = remember(expenses, selectedFilter, searchQuery) {
+        var result = if (selectedFilter == "Todas") expenses else expenses.filter { it.category == selectedFilter }
+        if (searchQuery.isNotEmpty()) {
+            result = result.filter { it.title.contains(searchQuery, ignoreCase = true) }
+        }
+        result
+    }
     val currentTotal = filteredExpenses.sumOf { it.amountValue }
 
     val weeklyData = remember(filteredExpenses) {
@@ -150,6 +182,7 @@ fun ExpensesScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showNewExpenseModal = true }, containerColor = GreenPrimary, contentColor = White, shape = CircleShape, elevation = FloatingActionButtonDefaults.elevation(8.dp)) {
                 Icon(Icons.Default.Add, contentDescription = "Nuevo Gasto")
@@ -193,28 +226,78 @@ fun ExpensesScreen(
                 }
                 Spacer(modifier = Modifier.height(20.dp))
 
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(dynamicFilters) { filter -> FilterChipUI(text = filter, isSelected = selectedFilter == filter, onClick = { selectedFilter = filter; viewModel.setFilter(filter) }) }
-                }
-                Spacer(modifier = Modifier.height(20.dp))
+                var isRefreshing by remember { mutableStateOf(false) }
 
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Lista de Gastos", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
-                            Text("$${String.format("%.2f", currentTotal)}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
+                androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        isRefreshing = true
+                        scope.launch {
+                            viewModel.loadExpenses()
+                            categoriesViewModel.loadCategories()
+                            kotlinx.coroutines.delay(500)
+                            isRefreshing = false
                         }
+                    }
+                ) {
+                    Column {
+                        // Barra de búsqueda
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text("Buscar gastos...") },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(Icons.Default.Close, contentDescription = "Limpiar")
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = GreenPrimary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                            ),
+                            singleLine = true
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
-                        if (filteredExpenses.isEmpty()) Text("No hay gastos en esta categoría.", color = TextGray, fontSize = 14.sp, modifier = Modifier.padding(vertical = 20.dp).align(Alignment.CenterHorizontally))
-                        else {
-                            filteredExpenses.forEach { expense ->
-                                ExpenseListItem(expense = expense, onDelete = { expenseToDelete = state.expenses.find { it.id == expense.id }; showDeleteDialog = true })
+
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(dynamicFilters) { filter -> FilterChipUI(text = filter, isSelected = selectedFilter == filter, onClick = { selectedFilter = filter; viewModel.setFilter(filter) }) }
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Lista de Gastos", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
+                                    Text("$${String.format("%.2f", currentTotal)}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                if (filteredExpenses.isEmpty()) Text("No hay gastos en esta categoría.", color = TextGray, fontSize = 14.sp, modifier = Modifier.padding(vertical = 20.dp).align(Alignment.CenterHorizontally))
+                                else {
+                                    filteredExpenses.forEach { expense ->
+                                        ExpenseListItem(
+                                            expense = expense,
+                                    onDelete = {
+                                        expenseToDelete = state.expenses.find { it.id == expense.id }
+                                        showDeleteDialog = true
+                                    },
+                                    onEdit = {
+                                        expenseToEdit = expense
+                                        showEditExpenseModal = true
+                                    }
+                                )
                                 if (expense != filteredExpenses.last()) Spacer(modifier = Modifier.height(16.dp))
                             }
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(80.dp))
+                        Spacer(modifier = Modifier.height(80.dp))
+                    }
+                }
             }
         }
     }
@@ -228,9 +311,40 @@ fun ExpensesScreen(
                 viewModel.createExpense(desc, amountValue, date, categoryId)
                 showNewExpenseModal = false
             },
-            onCreateCategory = { name, colorHex ->
-                categoriesViewModel.createCategory(name, null, colorHex)
+            onCreateCategory = { name, colorHex, iconName ->
+                categoriesViewModel.createCategory(name, null, iconName, colorHex)
             }
+        )
+    }
+
+    if (showEditExpenseModal && expenseToEdit != null) {
+        NewExpenseModal(
+            categories = categoryItems,
+            onDismiss = {
+                showEditExpenseModal = false
+                expenseToEdit = null
+            },
+            onSave = { desc, amountStr, categoryId, date ->
+                val amountValue = amountStr.toDoubleOrNull() ?: 0.0
+                viewModel.updateExpense(
+                    id = expenseToEdit!!.id,
+                    name = desc,
+                    amount = amountValue,
+                    expenseDate = date,
+                    categoryId = categoryId
+                )
+                showEditExpenseModal = false
+                expenseToEdit = null
+            },
+            onCreateCategory = { name, colorHex, iconName ->
+                categoriesViewModel.createCategory(name, null, iconName, colorHex)
+            },
+            // VALORES INICIALES PARA EDICIÓN
+            initialExpenseId = expenseToEdit!!.id,
+            initialDescription = expenseToEdit!!.title,
+            initialAmount = expenseToEdit!!.amountValue.toString(),
+            initialCategoryId = categoryItems.find { it.name == expenseToEdit!!.category }?.id ?: "",
+            initialDate = "2026-${expenseToEdit!!.date}"
         )
     }
 }
@@ -385,8 +499,11 @@ fun SummaryCardLight(title: String, amount: String, icon: String, color: Color, 
 }
 
 @Composable
-fun ExpenseListItem(expense: ExpenseUI, onDelete: () -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+fun ExpenseListItem(expense: ExpenseUI, onDelete: () -> Unit, onEdit: () -> Unit = {}) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable { onEdit() },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Box(modifier = Modifier.size(40.dp).background(expense.color.copy(0.1f), CircleShape), contentAlignment = Alignment.Center) { Icon(expense.icon, null, tint = expense.color, modifier = Modifier.size(20.dp)) }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {

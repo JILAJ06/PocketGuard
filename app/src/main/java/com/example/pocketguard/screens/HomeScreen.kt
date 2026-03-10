@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import java.time.LocalDate
 import com.example.pocketguard.data.models.DailyExpensePoint
 import com.example.pocketguard.presentation.di.ServiceLocator
 import com.example.pocketguard.presentation.viewmodel.DashboardViewModel
@@ -332,8 +333,35 @@ fun UpcomingChargesSection(
 
 @Composable
 fun UpcomingChargeCard(subscription: com.example.pocketguard.data.models.Subscription) {
-    // Usar el campo days_until_payment que viene del backend
-    val daysLeft = subscription.days_until_payment
+    // Calcular días correctamente - si es negativo, calcular próximo pago
+    val daysLeft = if (subscription.days_until_payment < 0) {
+        val today = LocalDate.now()
+        val lastPayment = LocalDate.parse(subscription.next_payment_date)
+
+        // Calcular siguiente fecha según ciclo
+        var calculatedNext = when (subscription.billing_cycle.lowercase()) {
+            "daily", "diario" -> lastPayment.plusDays(1)
+            "weekly", "semanal" -> lastPayment.plusWeeks(1)
+            "monthly", "mensual" -> lastPayment.plusMonths(1)
+            "yearly", "anual" -> lastPayment.plusYears(1)
+            else -> lastPayment.plusMonths(1)
+        }
+
+        // Si aún está en el pasado, seguir sumando
+        while (calculatedNext.isBefore(today)) {
+            calculatedNext = when (subscription.billing_cycle.lowercase()) {
+                "daily", "diario" -> calculatedNext.plusDays(1)
+                "weekly", "semanal" -> calculatedNext.plusWeeks(1)
+                "monthly", "mensual" -> calculatedNext.plusMonths(1)
+                "yearly", "anual" -> calculatedNext.plusYears(1)
+                else -> calculatedNext.plusMonths(1)
+            }
+        }
+
+        java.time.temporal.ChronoUnit.DAYS.between(today, calculatedNext).toInt()
+    } else {
+        subscription.days_until_payment
+    }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -378,8 +406,13 @@ fun UpcomingChargeCard(subscription: com.example.pocketguard.data.models.Subscri
                     color = MaterialTheme.colorScheme.onBackground,
                     fontSize = 14.sp
                 )
+                val daysText = when (daysLeft) {
+                    0 -> "Hoy"
+                    1 -> "Mañana"
+                    else -> "en $daysLeft días"
+                }
                 Text(
-                    if (daysLeft == 0) "Hoy" else if (daysLeft == 1) "Mañana" else "en $daysLeft días",
+                    daysText,
                     fontSize = 12.sp,
                     color = if (daysLeft <= 1) ErrorRed else GreenPrimary,
                     fontWeight = FontWeight.Bold

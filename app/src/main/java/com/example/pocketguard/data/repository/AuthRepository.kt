@@ -25,6 +25,7 @@ class AuthRepository(
                 Log.d("AuthRepository", "login() - Token recibido, guardando...")
                 tokenManager.saveAccessToken(response.data.accessToken)
                 tokenManager.saveUserId(response.data.user.id)
+                tokenManager.saveIsGoogleAuth(false) // Marcar como login normal
                 Log.d("AuthRepository", "login() - Usuario guardado: ${response.data.user.id}")
                 AuthResult.Success(response.data)
             } else {
@@ -49,6 +50,7 @@ class AuthRepository(
                 Log.d("AuthRepository", "register() - Token recibido, guardando...")
                 tokenManager.saveAccessToken(response.data.accessToken)
                 tokenManager.saveUserId(response.data.user.id)
+                tokenManager.saveIsGoogleAuth(false) // Marcar como registro normal
                 Log.d("AuthRepository", "register() - Usuario registrado: ${response.data.user.id}")
                 AuthResult.Success(response.data)
             } else {
@@ -94,6 +96,7 @@ class AuthRepository(
                 Log.d("AuthRepository", "googleMobileAuth() - Token recibido, guardando...")
                 tokenManager.saveAccessToken(response.data.accessToken)
                 tokenManager.saveUserId(response.data.user.id)
+                tokenManager.saveIsGoogleAuth(true) // Marcar como usuario de Google
                 Log.d("AuthRepository", "googleMobileAuth() - Usuario logueado: ${response.data.user.email}")
                 AuthResult.Success(response.data)
             } else {
@@ -178,7 +181,7 @@ class AuthRepository(
         }
     }
 
-    suspend fun deleteAccount(): AuthResult<Unit> {
+    suspend fun deleteAccount(password: String): AuthResult<Unit> {
         return try {
             Log.d("AuthRepository", "deleteAccount() - Iniciando eliminación de cuenta...")
             val token = tokenManager.getAccessToken()
@@ -187,7 +190,8 @@ class AuthRepository(
                 return AuthResult.Error("No hay token disponible", null)
             }
 
-            val response = authService.deleteAccount("Bearer $token")
+            val request = com.example.pocketguard.data.api.DeleteAccountRequest(password)
+            val response = authService.deleteAccount("Bearer $token", request)
             Log.d("AuthRepository", "deleteAccount() - Response: success=${response.success}")
 
             if (response.success) {
@@ -206,6 +210,10 @@ class AuthRepository(
 
     fun isAuthenticated(): Boolean {
         return tokenManager.isAuthenticated()
+    }
+
+    fun isGoogleUser(): Boolean {
+        return tokenManager.isGoogleAuth()
     }
 
     fun clearAuthData() {

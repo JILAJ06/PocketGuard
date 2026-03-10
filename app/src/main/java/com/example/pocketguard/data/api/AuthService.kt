@@ -63,10 +63,14 @@ interface AuthService {
 
     /**
      * Eliminar cuenta de usuario
-     * DELETE /users/me
+     * DELETE /auth/account
+     * Requiere password en el body para confirmar
      */
-    @DELETE("users/me")
-    suspend fun deleteAccount(@Header("Authorization") token: String): ApiResponse<Map<String, String>>
+    @HTTP(method = "DELETE", path = "auth/account", hasBody = true)
+    suspend fun deleteAccount(
+        @Header("Authorization") token: String,
+        @Body request: DeleteAccountRequest
+    ): ApiResponse<Map<String, String>>
 }
 
 // Data classes para requests adicionales
@@ -82,3 +86,8 @@ data class GoogleMobileAuthRequest(
 data class RefreshTokenRequest(
     val refreshToken: String
 )
+
+data class DeleteAccountRequest(
+    val password: String
+)
+

@@ -7,6 +7,7 @@ data class Category(
     val id: String,
     val name: String,
     val icon_url: String?,
+    val icon_name: String?, // Nombre del icono Material (ej: "restaurant", "car")
     val color_hex: String?,
     val is_global: Boolean,
     val user_id: String?,
@@ -29,12 +30,14 @@ data class CategoryResponse(
 data class CreateCategoryRequest(
     val name: String,
     val icon_url: String? = null,
+    val icon_name: String? = null, // Nombre del icono Material
     val color_hex: String? = null
 )
 
 data class UpdateCategoryRequest(
     val name: String? = null,
     val icon_url: String? = null,
+    val icon_name: String? = null, // Nombre del icono Material
     val color_hex: String? = null
 )
 
