@@ -71,6 +71,20 @@ interface AuthService {
         @Header("Authorization") token: String,
         @Body request: DeleteAccountRequest
     ): ApiResponse<Map<String, String>>
+
+    /**
+     * Solicitar enlace de recuperación de contraseña
+     * POST /auth/forgot-password
+     */
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): ApiResponse<Map<String, String>>
+
+    /**
+     * Restablecer contraseña con token de recuperación
+     * POST /auth/reset-password
+     */
+    @POST("auth/reset-password")
+    suspend fun resetPassword(@Body request: ResetPasswordRequest): ApiResponse<Map<String, String>>
 }
 
 // Data classes para requests adicionales
@@ -91,3 +105,11 @@ data class DeleteAccountRequest(
     val password: String
 )
 
+data class ForgotPasswordRequest(
+    val email: String
+)
+
+data class ResetPasswordRequest(
+    val token: String,
+    val newPassword: String
+)

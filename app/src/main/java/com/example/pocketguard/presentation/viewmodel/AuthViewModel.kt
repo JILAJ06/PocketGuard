@@ -1,5 +1,6 @@
 package com.example.pocketguard.presentation.viewmodel
 
+// AuthViewModel - Gestiona la autenticación y recuperación de contraseña
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -208,6 +209,75 @@ class AuthViewModel(
 
     fun isAuthenticated(): Boolean {
         return authRepository.isAuthenticated()
+    }
+
+    /**
+     * Solicitar enlace de recuperación de contraseña
+     */
+    fun forgotPassword(email: String) {
+        val emailError = ValidationManager.validateEmail(email)
+
+        if (emailError != ValidationError.NONE) {
+            _validationErrors.value = listOf(emailError)
+            _authState.value = AuthState.Error("Email inválido")
+            return
+        }
+
+        _validationErrors.value = emptyList()
+        _authState.value = AuthState.Loading
+
+        viewModelScope.launch {
+            when (val result = authRepository.forgotPassword(email)) {
+                is AuthResult.Success -> {
+                    _authState.value = AuthState.Idle
+                }
+                is AuthResult.Error -> {
+                    _authState.value = AuthState.Error(result.message)
+                }
+                is AuthResult.Loading -> {
+                    _authState.value = AuthState.Loading
+                }
+            }
+        }
+    }
+
+    /**
+     * Restablecer contraseña con token de recuperación
+     */
+    fun resetPassword(token: String, newPassword: String, confirmPassword: String) {
+        val passwordError = ValidationManager.validatePassword(newPassword)
+        val errors = mutableListOf<ValidationError>()
+
+        if (passwordError != ValidationError.NONE) {
+            errors.add(passwordError)
+        }
+
+        if (newPassword != confirmPassword) {
+            errors.add(ValidationError.PASSWORDS_NOT_MATCH)
+        }
+
+        if (errors.isNotEmpty()) {
+            _validationErrors.value = errors
+            _authState.value = AuthState.Error("Errores de validación")
+            return
+        }
+
+        _validationErrors.value = emptyList()
+        _authState.value = AuthState.Loading
+
+        viewModelScope.launch {
+            when (val result = authRepository.resetPassword(token, newPassword)) {
+                is AuthResult.Success -> {
+                    _authState.value = AuthState.Idle
+                }
+                is AuthResult.Error -> {
+                    _authState.value = AuthState.Error(result.message)
+                }
+                is AuthResult.Loading -> {
+                    _authState.value = AuthState.Loading
+                }
+            }
+        }
     }
 }
 

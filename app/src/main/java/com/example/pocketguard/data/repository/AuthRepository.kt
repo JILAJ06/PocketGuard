@@ -208,6 +208,54 @@ class AuthRepository(
         }
     }
 
+    /**
+     * Solicitar enlace de recuperación de contraseña
+     */
+    suspend fun forgotPassword(email: String): AuthResult<Unit> {
+        return try {
+            Log.d("AuthRepository", "forgotPassword() - Solicitando recuperación para: $email")
+            val request = com.example.pocketguard.data.api.ForgotPasswordRequest(email)
+            val response = authService.forgotPassword(request)
+
+            Log.d("AuthRepository", "forgotPassword() - Response success=${response.success}")
+
+            if (response.success) {
+                Log.d("AuthRepository", "forgotPassword() - Solicitud exitosa")
+                AuthResult.Success(Unit)
+            } else {
+                Log.e("AuthRepository", "forgotPassword() - Error: ${response.message}")
+                AuthResult.Error(response.message ?: "Error desconocido", response.statusCode)
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "forgotPassword() - Exception: ${e.message}", e)
+            AuthResult.Error(e.message ?: "Error en la conexión", null)
+        }
+    }
+
+    /**
+     * Restablecer contraseña con token de recuperación
+     */
+    suspend fun resetPassword(token: String, newPassword: String): AuthResult<Unit> {
+        return try {
+            Log.d("AuthRepository", "resetPassword() - Restableciendo contraseña con token")
+            val request = com.example.pocketguard.data.api.ResetPasswordRequest(token, newPassword)
+            val response = authService.resetPassword(request)
+
+            Log.d("AuthRepository", "resetPassword() - Response success=${response.success}")
+
+            if (response.success) {
+                Log.d("AuthRepository", "resetPassword() - Contraseña actualizada exitosamente")
+                AuthResult.Success(Unit)
+            } else {
+                Log.e("AuthRepository", "resetPassword() - Error: ${response.message}")
+                AuthResult.Error(response.message ?: "Error desconocido", response.statusCode)
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "resetPassword() - Exception: ${e.message}", e)
+            AuthResult.Error(e.message ?: "Error en la conexión", null)
+        }
+    }
+
     fun isAuthenticated(): Boolean {
         return tokenManager.isAuthenticated()
     }

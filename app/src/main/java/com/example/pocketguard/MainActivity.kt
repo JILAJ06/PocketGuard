@@ -192,6 +192,9 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                         Log.d("MainActivity", "Iniciando Google Sign-In")
                         val signInIntent = googleSignInHelper.getSignInIntent()
                         googleSignInLauncher.launch(signInIntent)
+                    },
+                    onForgotPasswordClick = {
+                        navController.navigate("forgot_password")
                     }
                 )
             }
@@ -341,6 +344,45 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                     },
                     onLogout = {
                         sessionManager.clearSession()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            composable("forgot_password") {
+                val authViewModel: com.example.pocketguard.presentation.viewmodel.AuthViewModel = viewModel(
+                    factory = ServiceLocator.getAuthViewModelFactory()
+                )
+                ForgotPasswordScreen(
+                    viewModel = authViewModel,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onSuccess = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable(
+                route = "reset_password/{token}",
+                arguments = listOf(navArgument("token") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val token = backStackEntry.arguments?.getString("token") ?: ""
+                val authViewModel: com.example.pocketguard.presentation.viewmodel.AuthViewModel = viewModel(
+                    factory = ServiceLocator.getAuthViewModelFactory()
+                )
+                ResetPasswordScreen(
+                    token = token,
+                    viewModel = authViewModel,
+                    onBackClick = {
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onSuccess = {
                         navController.navigate("login") {
                             popUpTo(0) { inclusive = true }
                         }
