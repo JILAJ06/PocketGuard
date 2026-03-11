@@ -12,37 +12,31 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.pocketguard.components.PocketGuardTextField
 import com.example.pocketguard.components.SocialButton
-import com.example.pocketguard.presentation.viewmodels.AuthViewModel
+import com.example.pocketguard.presentation.viewmodel.RegisterViewModel
+import com.example.pocketguard.ui.theme.PocketGuardTheme
 
 @Composable
 fun SignUpScreen(
-    onRegisterClick: () -> Unit,
+    viewModel: RegisterViewModel,
+    onRegisterSuccess: () -> Unit,
     onLoginLinkClick: () -> Unit,
-    onGoogleClick: () -> Unit,
-    viewModel: AuthViewModel = viewModel()
+    onGoogleClick: () -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var isChecked by remember { mutableStateOf(false) }
+    val formState by viewModel.formState.collectAsStateWithLifecycle()
+    val isSuccess by viewModel.isSuccess.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
-    val isLoading by viewModel.isLoading.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
-    val authSuccess by viewModel.authSuccess.collectAsState()
-
-    // Observar éxito de autenticación
-    LaunchedEffect(authSuccess) {
-        if (authSuccess != null) {
-            onRegisterClick()
+    LaunchedEffect(isSuccess) {
+        if (isSuccess) {
+            onRegisterSuccess()
         }
     }
 
@@ -54,7 +48,6 @@ fun SignUpScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // --- Header ---
         Text(
             text = "Crea tu cuenta",
             style = MaterialTheme.typography.headlineMedium,
@@ -70,109 +63,154 @@ fun SignUpScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // --- Formulario ---
+        if (errorMessage.isNotEmpty()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+            ) {
+                Text(
+                    text = errorMessage,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(12.dp),
+                    fontSize = 12.sp
+                )
+            }
+        }
+
         PocketGuardTextField(
-            name,
-            { name = it },
+            formState.fullName,
+            { viewModel.onFullNameChanged(it) },
             "Nombre Completo",
             Icons.Default.Person,
-            enabled = !isLoading
+            isError = formState.fullNameError.name != "NONE",
+            enabled = !formState.isLoading
         )
+        if (formState.fullNameError.name != "NONE") {
+            Text(
+                text = viewModel.getFullNameErrorMessage(),
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 11.sp,
+                modifier = Modifier.align(Alignment.Start)
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
+
         PocketGuardTextField(
-            email,
-            { email = it },
+            formState.email,
+            { viewModel.onEmailChanged(it) },
             "Correo Electrónico",
             Icons.Default.Email,
             keyboardType = KeyboardType.Email,
-            enabled = !isLoading
+            isError = formState.emailError.name != "NONE",
+            enabled = !formState.isLoading
         )
+        if (formState.emailError.name != "NONE") {
+            Text(
+                text = viewModel.getEmailErrorMessage(),
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 11.sp,
+                modifier = Modifier.align(Alignment.Start)
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
+
         PocketGuardTextField(
-            password,
-            { password = it },
+            formState.password,
+            { viewModel.onPasswordChanged(it) },
             "Contraseña",
             Icons.Default.Lock,
             isPassword = true,
-            enabled = !isLoading
+            isError = formState.passwordError.name != "NONE",
+            enabled = !formState.isLoading
         )
+        if (formState.passwordError.name != "NONE") {
+            Text(
+                text = viewModel.getPasswordErrorMessage(),
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 11.sp,
+                modifier = Modifier.align(Alignment.Start)
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // --- Checkbox Legal ---
+        PocketGuardTextField(
+            formState.confirmPassword,
+            { viewModel.onConfirmPasswordChanged(it) },
+            "Confirmar Contraseña",
+            Icons.Default.Lock,
+            isPassword = true,
+            isError = formState.confirmPasswordError.name != "NONE",
+            enabled = !formState.isLoading
+        )
+        if (formState.confirmPasswordError.name != "NONE") {
+            Text(
+                text = viewModel.getConfirmPasswordErrorMessage(),
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 11.sp,
+                modifier = Modifier.align(Alignment.Start)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
             Checkbox(
-                checked = isChecked,
-                onCheckedChange = { isChecked = it },
+                checked = formState.acceptedTerms,
+                onCheckedChange = { viewModel.onAcceptedTermsChanged(it) },
                 colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary),
-                enabled = !isLoading
+                enabled = !formState.isLoading
             )
             Text(
                 text = "Acepto el Aviso de Privacidad y Términos.",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.clickable(enabled = !isLoading) { /* Abrir PDF Legal */ }
-            )
-        }
-
-        // --- Mensaje de error ---
-        if (errorMessage != null) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = errorMessage!!,
-                color = MaterialTheme.colorScheme.error,
-                fontSize = 12.sp,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
+                modifier = Modifier.clickable(enabled = !formState.isLoading) {
+                    viewModel.onAcceptedTermsChanged(!formState.acceptedTerms)
+                }
             )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // --- Botones ---
         Button(
-            onClick = {
-                if (name.isNotEmpty() && email.isNotEmpty() && password.isNotEmpty() && isChecked) {
-                    viewModel.register(name, email, password)
-                }
-            },
-            enabled = isChecked && name.isNotEmpty() && email.isNotEmpty() && password.isNotEmpty() && !isLoading,
+            onClick = { viewModel.register() },
+            enabled = formState.isValid && !formState.isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
-                disabledContainerColor = Color.LightGray
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         ) {
-            if (isLoading) {
+            if (formState.isLoading) {
                 CircularProgressIndicator(
                     color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             } else {
-                Text(
-                    "Comenzar a Ahorrar",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
+                Text("Comenzar a Ahorrar", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        SocialButton(text = "Registrarse con Google", onClick = onGoogleClick, enabled = !isLoading)
+
+        SocialButton(text = "Registrarse con Google", onClick = onGoogleClick, enabled = !formState.isLoading)
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // --- Footer ---
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("¿Ya tienes cuenta?", color = MaterialTheme.colorScheme.secondary)
-            TextButton(onClick = onLoginLinkClick, enabled = !isLoading) {
+            TextButton(onClick = onLoginLinkClick) {
                 Text("Inicia Sesión", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
         }

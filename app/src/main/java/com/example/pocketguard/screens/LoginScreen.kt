@@ -11,36 +11,33 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.pocketguard.components.PocketGuardTextField
 import com.example.pocketguard.components.SocialButton
-import com.example.pocketguard.presentation.viewmodels.AuthViewModel
+import com.example.pocketguard.presentation.viewmodel.LoginViewModel
+import com.example.pocketguard.data.repository.AuthRepository
+import com.example.pocketguard.ui.theme.PocketGuardTheme
 
 @Composable
 fun LoginScreen(
-    onLoginClick: () -> Unit,
+    viewModel: LoginViewModel,
+    onLoginSuccess: () -> Unit,
     onRegisterLinkClick: () -> Unit,
     onGoogleClick: () -> Unit,
-    viewModel: AuthViewModel = viewModel()
+    onForgotPasswordClick: () -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    val formState by viewModel.formState.collectAsStateWithLifecycle()
+    val isSuccess by viewModel.isSuccess.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
-    val isLoading by viewModel.isLoading.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
-    val authSuccess by viewModel.authSuccess.collectAsState()
-
-    // Observar éxito de autenticación
-    LaunchedEffect(authSuccess) {
-        if (authSuccess != null) {
-            // Guardaria token aquí en futuro
-            onLoginClick()
+    LaunchedEffect(isSuccess) {
+        if (isSuccess) {
+            onLoginSuccess()
         }
     }
 
@@ -52,7 +49,6 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // --- Header ---
         Icon(
             imageVector = Icons.Default.AttachMoney,
             contentDescription = "Logo",
@@ -75,75 +71,82 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // --- Formulario ---
-        PocketGuardTextField(
-            email,
-            { email = it },
-            "Correo Electrónico",
-            Icons.Default.Email,
-            keyboardType = KeyboardType.Email,
-            enabled = !isLoading
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        PocketGuardTextField(
-            password,
-            { password = it },
-            "Contraseña",
-            Icons.Default.Lock,
-            isPassword = true,
-            enabled = !isLoading
-        )
-
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-            TextButton(onClick = { /* Lógica recuperar */ }, enabled = !isLoading) {
+        if (errorMessage.isNotEmpty()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+            ) {
                 Text(
-                    "¿Olvidaste tu contraseña?",
-                    color = MaterialTheme.colorScheme.secondary,
+                    text = errorMessage,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(12.dp),
                     fontSize = 12.sp
                 )
             }
         }
 
-        // --- Mensaje de error ---
-        if (errorMessage != null) {
-            Spacer(modifier = Modifier.height(8.dp))
+        PocketGuardTextField(
+            formState.email,
+            { viewModel.onEmailChanged(it) },
+            "Correo Electrónico",
+            Icons.Default.Email,
+            keyboardType = KeyboardType.Email,
+            isError = formState.emailError.name != "NONE"
+        )
+        if (formState.emailError.name != "NONE") {
             Text(
-                text = errorMessage!!,
+                text = viewModel.getEmailErrorMessage(),
                 color = MaterialTheme.colorScheme.error,
-                fontSize = 12.sp,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
+                fontSize = 11.sp,
+                modifier = Modifier.align(Alignment.Start)
             )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        PocketGuardTextField(
+            formState.password,
+            { viewModel.onPasswordChanged(it) },
+            "Contraseña",
+            Icons.Default.Lock,
+            isPassword = true,
+            isError = formState.passwordError.name != "NONE"
+        )
+        if (formState.passwordError.name != "NONE") {
+            Text(
+                text = viewModel.getPasswordErrorMessage(),
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 11.sp,
+                modifier = Modifier.align(Alignment.Start)
+            )
+        }
+
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+            TextButton(onClick = onForgotPasswordClick) {
+                Text("¿Olvidaste tu contraseña?", color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // --- Botones ---
         Button(
-            onClick = {
-                if (email.isNotEmpty() && password.isNotEmpty()) {
-                    viewModel.login(email, password)
-                }
-            },
+            onClick = { viewModel.login() },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            enabled = !isLoading && email.isNotEmpty() && password.isNotEmpty()
+            enabled = !formState.isLoading
         ) {
-            if (isLoading) {
+            if (formState.isLoading) {
                 CircularProgressIndicator(
                     color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             } else {
-                Text(
-                    "Iniciar Sesión",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
+                Text("Iniciar Sesión", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
             }
         }
 
@@ -157,20 +160,16 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        SocialButton(text = "Iniciar con Google", onClick = onGoogleClick, enabled = !isLoading)
+        SocialButton(text = "Iniciar con Google", onClick = onGoogleClick, enabled = !formState.isLoading)
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // --- Footer ---
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("¿No tienes cuenta?", color = MaterialTheme.colorScheme.secondary)
-            TextButton(onClick = onRegisterLinkClick, enabled = !isLoading) {
-                Text(
-                    "Regístrate aquí",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
+            TextButton(onClick = onRegisterLinkClick) {
+                Text("Regístrate aquí", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
+

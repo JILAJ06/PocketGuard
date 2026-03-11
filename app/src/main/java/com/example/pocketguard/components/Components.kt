@@ -20,7 +20,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.pocketguard.ui.theme.TextGray
-
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.example.pocketguard.ui.theme.*
 @Composable
 fun PocketGuardTextField(
     value: String,
@@ -29,6 +37,7 @@ fun PocketGuardTextField(
     icon: ImageVector,
     isPassword: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text,
+    isError: Boolean = false,
     enabled: Boolean = true
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
@@ -53,13 +62,14 @@ fun PocketGuardTextField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         shape = RoundedCornerShape(16.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = Color.Transparent,
+            focusedBorderColor = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = if (isError) MaterialTheme.colorScheme.error else Color.Transparent,
             focusedContainerColor = MaterialTheme.colorScheme.surface,
             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
         modifier = Modifier.fillMaxWidth(),
-        enabled = enabled
+        enabled = enabled,
+        isError = isError
     )
 }
 
@@ -72,14 +82,71 @@ fun SocialButton(
     OutlinedButton(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp),
+        modifier = Modifier.fillMaxWidth().height(50.dp),
         colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface),
         enabled = enabled
     ) {
         Icon(Icons.Default.AccountCircle, contentDescription = null, tint = Color.Unspecified)
         Spacer(modifier = Modifier.width(8.dp))
         Text(text, color = MaterialTheme.colorScheme.onBackground)
+    }
+}
+@Composable
+fun TransactionItem(
+    name: String,
+    date: String,
+    amount: String,
+    icon: ImageVector,
+    amountColor: Color = TextDark, // Color del dinero (por defecto negro/oscuro)
+    backgroundColor: Color = Color.Transparent // Fondo de la fila (transparente por defecto)
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp) // Espacio entre items
+            .background(backgroundColor, RoundedCornerShape(12.dp))
+            .padding(horizontal = 4.dp, vertical = 8.dp), // Padding interno
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 1. Icono con fondo Beige
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(BeigeItem, RoundedCornerShape(12.dp)), // Asegúrate de tener BeigeItem en Color.kt
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = TextGray,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // 2. Textos Centrales (Nombre y Fecha)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = name,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                color = TextDark
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = date,
+                fontSize = 12.sp,
+                color = TextGray
+            )
+        }
+
+        // 3. Monto a la derecha
+        Text(
+            text = amount,
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
+            color = amountColor
+        )
     }
 }
