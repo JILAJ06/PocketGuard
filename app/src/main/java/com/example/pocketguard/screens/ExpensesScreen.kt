@@ -159,8 +159,12 @@ fun ExpensesScreen(
     val weeklyData = remember(filteredExpenses) {
         val daysOfWeek = listOf("dom", "lun", "mar", "mié", "jue", "vie", "sáb")
         val today = java.time.LocalDate.now()
+        val dayOfWeek = today.dayOfWeek.value % 7 // 0=domingo, 1=lunes, ..., 6=sábado
+
         daysOfWeek.mapIndexed { index, day ->
-            val targetDate = today.minusDays((6 - index).toLong())
+            // Calcular cuántos días atrás desde hoy para cada posición
+            val daysAgo = (dayOfWeek - index + 7) % 7
+            val targetDate = today.minusDays(daysAgo.toLong())
             val total = filteredExpenses
                 .filter { it.date.startsWith(targetDate.toString().substring(5, 10)) }
                 .sumOf { it.amountValue }

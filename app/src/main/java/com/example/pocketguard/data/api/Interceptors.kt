@@ -1,6 +1,7 @@
 package com.example.pocketguard.data.api
 
 import android.content.Context
+import android.util.Log
 import com.example.pocketguard.constants.ApiConstants
 import okhttp3.Interceptor
 import okhttp3.Request
@@ -16,11 +17,19 @@ class AuthInterceptor(private val context: Context) : Interceptor {
         val originalRequest = chain.request()
         val url = originalRequest.url.encodedPath
 
-        if (url.contains("/auth/login") || url.contains("/auth/register")) {
+        Log.d("AuthInterceptor", "Request URL: $url")
+
+        // No agregar token a endpoints públicos
+        if (url.contains("/auth/login") ||
+            url.contains("/auth/register") ||
+            url.contains("/auth/google") ||
+            url.contains("/health")) {
+            Log.d("AuthInterceptor", "Endpoint público, no se agrega token")
             return chain.proceed(originalRequest)
         }
 
         val token = getAccessToken()
+        Log.d("AuthInterceptor", "Token: ${if (token.isEmpty()) "vacío" else "presente (${token.length} chars)"}")
 
         val requestWithToken = if (token.isNotEmpty()) {
             originalRequest.newBuilder()
@@ -30,7 +39,14 @@ class AuthInterceptor(private val context: Context) : Interceptor {
             originalRequest
         }
 
-        return chain.proceed(requestWithToken)
+        return try {
+            val response = chain.proceed(requestWithToken)
+            Log.d("AuthInterceptor", "Response code: ${response.code}")
+            response
+        } catch (e: Exception) {
+            Log.e("AuthInterceptor", "Error en request: ${e.message}", e)
+            throw e
+        }
     }
 
     /**

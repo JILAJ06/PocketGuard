@@ -102,9 +102,10 @@ object RetrofitClient {
     private fun getHttpClient(context: Context): OkHttpClient {
         tokenManager = TokenManager(context)
         return OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(60, TimeUnit.SECONDS)  // Aumentado a 60 segundos
+            .readTimeout(60, TimeUnit.SECONDS)     // Aumentado a 60 segundos
+            .writeTimeout(60, TimeUnit.SECONDS)    // Aumentado a 60 segundos
+            .retryOnConnectionFailure(true)        // Reintentar en caso de fallo
             .addInterceptor(AuthInterceptor(context))
             .addInterceptor(TokenRefreshInterceptor(context, tokenManager!!))
             .addInterceptor(okhttp3.logging.HttpLoggingInterceptor().apply {

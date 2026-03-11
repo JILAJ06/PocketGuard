@@ -41,8 +41,12 @@ class GoogleSignInHelper(private val context: Context) {
 
     /**
      * Obtiene el Intent para iniciar el flujo de Google Sign-In
+     * Cierra la sesión actual antes para forzar la selección de cuenta
      */
     fun getSignInIntent(): Intent {
+        // Cerrar sesión silenciosamente para forzar selector de cuentas
+        googleSignInClient.signOut()
+        Log.d(TAG, "Sesión de Google cerrada para forzar selector de cuentas")
         return googleSignInClient.signInIntent
     }
 

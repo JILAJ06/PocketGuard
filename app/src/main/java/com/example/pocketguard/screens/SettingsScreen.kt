@@ -172,7 +172,22 @@ fun SettingsScreen(
             banks = banks,
             onDismiss = { showAddCardDialog = false },
             onSave = { bankName, alias, digits, colorHex ->
-                cardsViewModel.createCard(bankName, alias, digits, colorHex, false)
+                // Verificar si el banco existe en la lista
+                val bankExists = banks.any { it.equals(bankName, ignoreCase = true) }
+
+                if (!bankExists && bankName.isNotEmpty()) {
+                    // Si el banco no existe, crearlo primero
+                    coroutineScope.launch {
+                        banksViewModel.createBank(bankName)
+                        // Esperar un poco para que se cree el banco
+                        kotlinx.coroutines.delay(500)
+                        // Luego crear la tarjeta
+                        cardsViewModel.createCard(bankName, alias, digits, colorHex, false)
+                    }
+                } else {
+                    // Si el banco existe, crear la tarjeta directamente
+                    cardsViewModel.createCard(bankName, alias, digits, colorHex, false)
+                }
                 showAddCardDialog = false
             }
         )
@@ -542,24 +557,6 @@ fun SettingsScreen(
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         listOf("system" to "Automático", "light" to "Claro", "dark" to "Oscuro").forEach { (code, label) ->
                             DropdownMenuItem(text = { Text(label) }, onClick = { selectedTheme = code; preferencesViewModel.updatePreferences(theme = code); expanded = false }, leadingIcon = if (selectedTheme == code) { { Icon(Icons.Default.Check, null, tint = GreenPrimary) } } else null)
-                        }
-                    }
-                }
-            }
-
-            UserSettingsCard(
-                icon = Icons.Default.Language,
-                iconColor = Color(0xFF2196F3),
-                iconBackground = Color(0xFFE3F2FD),
-                title = "Idioma",
-                subtitle = if (selectedLanguage == "es") "Español" else "English"
-            ) {
-                var expanded by remember { mutableStateOf(false) }
-                Box {
-                    TextButton(onClick = { expanded = true }) { Text("Cambiar", color = GreenPrimary, fontWeight = FontWeight.Bold) }
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        listOf("es" to "Español", "en" to "English").forEach { (code, label) ->
-                            DropdownMenuItem(text = { Text(label) }, onClick = { selectedLanguage = code; preferencesViewModel.updatePreferences(language = code); expanded = false }, leadingIcon = if (selectedLanguage == code) { { Icon(Icons.Default.Check, null, tint = GreenPrimary) } } else null)
                         }
                     }
                 }

@@ -87,10 +87,15 @@ class AuthRepository(
     suspend fun googleMobileAuth(idToken: String): AuthResult<AuthResponse> {
         return try {
             Log.d("AuthRepository", "googleMobileAuth() - Iniciando login con Google")
+            Log.d("AuthRepository", "googleMobileAuth() - idToken length: ${idToken.length}")
+            Log.d("AuthRepository", "googleMobileAuth() - idToken preview: ${idToken.take(50)}...")
+
             val request = GoogleMobileAuthRequest(idToken)
+            Log.d("AuthRepository", "googleMobileAuth() - Enviando request a /auth/google/mobile")
+
             val response = authService.googleMobileAuth(request)
 
-            Log.d("AuthRepository", "googleMobileAuth() - Response success=${response.success}")
+            Log.d("AuthRepository", "googleMobileAuth() - Response success=${response.success}, statusCode=${response.statusCode}")
 
             if (response.success && response.data != null) {
                 Log.d("AuthRepository", "googleMobileAuth() - Token recibido, guardando...")
@@ -101,10 +106,20 @@ class AuthRepository(
                 AuthResult.Success(response.data)
             } else {
                 Log.e("AuthRepository", "googleMobileAuth() - Error: ${response.message}")
+                Log.e("AuthRepository", "googleMobileAuth() - Status Code: ${response.statusCode}")
                 AuthResult.Error(response.message ?: "Error en autenticación con Google", response.statusCode)
             }
+        } catch (e: retrofit2.HttpException) {
+            Log.e("AuthRepository", "googleMobileAuth() - HttpException: ${e.code()} - ${e.message()}")
+            try {
+                val errorBody = e.response()?.errorBody()?.string()
+                Log.e("AuthRepository", "googleMobileAuth() - Error body: $errorBody")
+            } catch (ex: Exception) {
+                Log.e("AuthRepository", "googleMobileAuth() - No se pudo leer error body")
+            }
+            AuthResult.Error("Error del servidor (${e.code()}): ${e.message()}", e.code())
         } catch (e: Exception) {
-            Log.e("AuthRepository", "googleMobileAuth() - Exception: ${e.message}", e)
+            Log.e("AuthRepository", "googleMobileAuth() - Exception: ${e.javaClass.simpleName} - ${e.message}", e)
             AuthResult.Error(e.message ?: "Error en la conexión", null)
         }
     }

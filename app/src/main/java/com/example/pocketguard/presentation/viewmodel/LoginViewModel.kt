@@ -90,11 +90,21 @@ class LoginViewModel(
      */
     fun loginWithGoogle(idToken: String) {
         Log.d("LoginViewModel", "loginWithGoogle() - Iniciando login con Google")
+        Log.d("LoginViewModel", "loginWithGoogle() - idToken length: ${idToken.length}")
+
+        // Validar que el idToken no esté vacío
+        if (idToken.isBlank()) {
+            Log.e("LoginViewModel", "loginWithGoogle() - idToken está vacío")
+            _errorMessage.value = "Error: Token de Google inválido"
+            return
+        }
+
         _formState.value = _formState.value.copy(isLoading = true)
         _errorMessage.value = ""
 
         viewModelScope.launch {
             try {
+                Log.d("LoginViewModel", "loginWithGoogle() - Enviando request al backend...")
                 val result = authRepository.googleMobileAuth(idToken)
                 result.let { authResult ->
                     when {
@@ -105,10 +115,19 @@ class LoginViewModel(
                         }
                         authResult is com.example.pocketguard.data.models.AuthResult.Error -> {
                             Log.e("LoginViewModel", "loginWithGoogle() - Error: ${authResult.message}")
+                            Log.e("LoginViewModel", "loginWithGoogle() - Status Code: ${authResult.statusCode}")
+
                             val errorMsg = when {
+                                authResult.statusCode == 500 -> {
+                                    "Error del servidor (500). Verifica:\n" +
+                                    "1. Que el backend esté configurado con Google OAuth\n" +
+                                    "2. Que el GOOGLE_CLIENT_ID del backend coincida con el del frontend\n" +
+                                    "3. Los logs del backend para más detalles"
+                                }
+                                authResult.statusCode == 401 -> "Token de Google inválido o expirado"
                                 authResult.message.contains("Unable to resolve host") ||
                                 authResult.message.contains("Failed to connect") ->
-                                    "No se pudo conectar al servidor. Verifica que tu backend esté corriendo en 192.168.110.230:3001"
+                                    "No se pudo conectar al servidor. Verifica que tu backend esté corriendo"
                                 authResult.message.contains("timeout") ->
                                     "Tiempo de espera agotado. Verifica tu conexión"
                                 else -> authResult.message

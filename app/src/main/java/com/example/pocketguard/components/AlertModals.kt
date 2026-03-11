@@ -17,6 +17,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -64,7 +66,7 @@ fun AlertSettingsModal(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = BackgroundLight,
+        containerColor = MaterialTheme.colorScheme.background,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = Modifier.fillMaxHeight(0.95f)
     ) {
@@ -90,12 +92,12 @@ fun AlertSettingsModal(
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text("Configuración", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark)
-                        Text("Personaliza tus alertas", fontSize = 13.sp, color = TextGray)
+                        Text("Configuración", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = MaterialTheme.colorScheme.onBackground)
+                        Text("Personaliza tus alertas", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                IconButton(onClick = onDismiss, modifier = Modifier.background(White, CircleShape)) {
-                    Icon(Icons.Default.Close, null, tint = TextGray)
+                IconButton(onClick = onDismiss, modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)) {
+                    Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -105,11 +107,6 @@ fun AlertSettingsModal(
 
                 // 1. Notificaciones
                 SectionHeader("Canales de Notificación", Icons.Outlined.Notifications)
-                Spacer(modifier = Modifier.height(8.dp))
-                SettingsCard("Email", "usuario@ejemplo.com", Icons.Outlined.Email, notifColor, true, emailEnabled) {
-                    emailEnabled = it
-                    showSaveButton = true
-                }
                 Spacer(modifier = Modifier.height(12.dp))
                 SettingsCard("Push", "Notificaciones móviles", Icons.Outlined.Smartphone, notifColor, true, pushEnabled) {
                     pushEnabled = it
@@ -131,9 +128,9 @@ fun AlertSettingsModal(
                 // 3. Días de Anticipación
                 SectionHeader("Días de Anticipación", Icons.Outlined.CalendarToday)
                 Spacer(modifier = Modifier.height(8.dp))
-                Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, daysColor.copy(alpha = 0.2f))) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, daysColor.copy(alpha = 0.2f))) {
                     Column(modifier = Modifier.padding(20.dp)) {
-                        Text("Avisar con ${daysBefore.toInt()} días de antelación", fontSize = 14.sp, color = TextDark, fontWeight = FontWeight.Bold)
+                        Text("Avisar con ${daysBefore.toInt()} días de antelación", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                         Slider(
                             value = daysBefore,
                             onValueChange = {
@@ -204,6 +201,15 @@ fun AddCardDialog(
     var selectedColor by remember { mutableStateOf(initialColor) }
     var showBanksDropdown by remember { mutableStateOf(false) }
 
+    // Filtrar bancos según lo que el usuario escriba
+    val filteredBanks = remember(bankName, banks) {
+        if (bankName.isBlank()) {
+            banks
+        } else {
+            banks.filter { it.contains(bankName, ignoreCase = true) }
+        }
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -222,29 +228,54 @@ fun AddCardDialog(
                 )
                 Spacer(modifier = Modifier.height(20.dp))
 
+                // Campo de banco con dropdown autocompletable
                 Box {
                     OutlinedTextField(
                         value = bankName,
-                        onValueChange = { bankName = it },
+                        onValueChange = {
+                            bankName = it
+                            // NO cambiar showBanksDropdown aquí para evitar que el teclado se cierre
+                        },
                         label = { Text("Nombre del Banco") },
+                        placeholder = { Text("Escribe o selecciona un banco") },
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth().clickable { if (banks.isNotEmpty()) showBanksDropdown = true },
+                        modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = MaterialTheme.colorScheme.onSurface,
                             unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                             focusedBorderColor = GreenPrimary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
+                        ),
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                // Solo abrir dropdown si hay bancos filtrados
+                                if (filteredBanks.isNotEmpty()) {
+                                    showBanksDropdown = !showBanksDropdown
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = if (showBanksDropdown) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = "Toggle dropdown",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     )
+
                     DropdownMenu(
-                        expanded = showBanksDropdown,
+                        expanded = showBanksDropdown && filteredBanks.isNotEmpty(),
                         onDismissRequest = { showBanksDropdown = false },
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.surface)
+                            .heightIn(max = 200.dp)
                     ) {
-                        banks.forEach { bank ->
+                        filteredBanks.forEach { bank ->
                             DropdownMenuItem(
                                 text = { Text(bank, color = MaterialTheme.colorScheme.onSurface) },
-                                onClick = { bankName = bank; showBanksDropdown = false }
+                                onClick = {
+                                    bankName = bank
+                                    showBanksDropdown = false
+                                }
                             )
                         }
                     }
@@ -483,22 +514,22 @@ fun MiniCreditCard(card: PaymentCard) {
 @Composable
 fun SectionHeader(text: String, icon: ImageVector) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = TextDark, modifier = Modifier.size(18.dp))
+        Icon(icon, null, tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(18.dp))
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+        Text(text, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
     }
 }
 
 @Composable
 fun SettingsCard(title: String, subtitle: String, icon: ImageVector, themeColor: Color, hasSwitch: Boolean = false, checked: Boolean = false, onCheckedChange: (Boolean) -> Unit = {}) {
-    Card(colors = CardDefaults.cardColors(containerColor = White), shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(0.dp), border = BorderStroke(1.dp, InputBackground), modifier = Modifier.fillMaxWidth()) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(0.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)), modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(44.dp).background(themeColor.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = themeColor, modifier = Modifier.size(22.dp)) }
                 Spacer(modifier = Modifier.width(16.dp))
-                Column { Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextDark); Text(subtitle, fontSize = 12.sp, color = TextGray) }
+                Column { Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface); Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
-            if (hasSwitch) { Switch(checked = checked, onCheckedChange = onCheckedChange, colors = SwitchDefaults.colors(checkedThumbColor = White, checkedTrackColor = themeColor, uncheckedThumbColor = White, uncheckedTrackColor = InputBackground)) }
+            if (hasSwitch) { Switch(checked = checked, onCheckedChange = onCheckedChange, colors = SwitchDefaults.colors(checkedThumbColor = White, checkedTrackColor = themeColor, uncheckedThumbColor = White, uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant)) }
         }
     }
 }

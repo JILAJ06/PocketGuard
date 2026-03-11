@@ -1,7 +1,14 @@
 package com.example.pocketguard.constants
 
 object ApiConstants {
-    const val BASE_URL = "http://192.168.110.230:3001/api/v1/"
+    // ⚠️ IMPORTANTE: Cambia esta IP a la IP de tu computadora donde corre el backend
+    // Para obtener tu IP:
+    // 1. Abre terminal/cmd en tu PC
+    // 2. Ejecuta: ipconfig (Windows) o ifconfig (Mac/Linux)
+    // 3. Busca la IPv4 de tu WiFi (ejemplo: 192.168.x.x o 10.x.x.x)
+    // 4. Asegúrate que tu teléfono esté en la misma red WiFi
+    const val BASE_URL = "http://10.27.49.163:3001/api/v1/"
+
     const val GOOGLE_CLIENT_ID = "948325541313-gr9dhia5r6gidgejehr6si9s89r0tdv2.apps.googleusercontent.com"
     const val AUTH_ENDPOINT = "auth"
 

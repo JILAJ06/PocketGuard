@@ -296,13 +296,27 @@ fun SubscriptionsScreen(
             initialCardId = defaultCardId,
             onDismiss = { showAddModal = false },
             onSave = { name, price, category, cycle, date, cardId ->
+                // IMPORTANTE: Los IDs deben coincidir con los del backend
+                // Backend: Daily=5, Weekly=6, Monthly=7, Yearly=8
                 val billingCycleId = when (cycle) {
-                    "Diario" -> 1
-                    "Semanal" -> 2
-                    "Anual" -> 4
-                    else -> 3 // Mensual
+                    "Diario" -> 5    // Daily
+                    "Semanal" -> 6   // Weekly
+                    "Mensual" -> 7   // Monthly
+                    "Anual" -> 8     // Yearly
+                    else -> 7        // Default: Monthly
                 }
                 val categoryId = categoriesState.categories.firstOrNull { it.name == category }?.id ?: ""
+
+                // Validar que la categoría sea válida
+                if (categoryId.isEmpty()) {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = "Por favor selecciona una categoría válida",
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                    return@NewSubscriptionModal
+                }
 
                 val formattedDate = try {
                     val inputFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
@@ -311,13 +325,16 @@ fun SubscriptionsScreen(
                     localDate.format(outputFormatter)
                 } catch (e: Exception) { date }
 
+                // Convertir cardId vacío a null (el backend espera null, no string vacío)
+                val validCardId = if (cardId.isNullOrEmpty()) null else cardId
+
                 viewModel.createSubscription(
                     serviceName = name,
                     amount = price.toDoubleOrNull() ?: 0.0,
                     nextPaymentDate = formattedDate,
                     billingCycleId = billingCycleId,
                     categoryId = categoryId,
-                    cardId = cardId
+                    cardId = validCardId
                 )
                 showAddModal = false
             },
@@ -356,16 +373,36 @@ fun SubscriptionsScreen(
                 subscriptionToEdit = null
             },
             onSave = { name, price, category, cycle, date, cardId ->
+                // IMPORTANTE: Los IDs deben coincidir con los del backend
+                // Backend: Daily=5, Weekly=6, Monthly=7, Yearly=8
                 val billingCycleId = when (cycle) {
-                    "Diario" -> 1; "Semanal" -> 2; "Anual" -> 4; else -> 3
+                    "Diario" -> 5    // Daily
+                    "Semanal" -> 6   // Weekly
+                    "Mensual" -> 7   // Monthly
+                    "Anual" -> 8     // Yearly
+                    else -> 7        // Default: Monthly
                 }
                 val categoryId = categoriesState.categories.firstOrNull { it.name == category }?.id ?: ""
+
+                // Validar que la categoría sea válida
+                if (categoryId.isEmpty()) {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = "Por favor selecciona una categoría válida",
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                    return@NewSubscriptionModal
+                }
 
                 val formattedDate = try {
                     val input = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
                     val output = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
                     java.time.LocalDate.parse(date, input).format(output)
                 } catch (e: Exception) { date }
+
+                // Convertir cardId vacío a null (el backend espera null, no string vacío)
+                val validCardId = if (cardId.isNullOrEmpty()) null else cardId
 
                 viewModel.updateSubscription(
                     subscriptionId = sub.id,
@@ -374,7 +411,7 @@ fun SubscriptionsScreen(
                     nextPaymentDate = formattedDate,
                     billingCycleId = billingCycleId,
                     categoryId = categoryId,
-                    cardId = cardId
+                    cardId = validCardId
                 )
                 showEditModal = false
                 subscriptionToEdit = null
