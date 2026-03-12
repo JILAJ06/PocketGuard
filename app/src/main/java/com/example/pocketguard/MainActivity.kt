@@ -188,6 +188,7 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                         }
                     },
                     onRegisterLinkClick = { navController.navigate("register") },
+                    onForgotPasswordClick = { navController.navigate("forgot_password") },
                     onGoogleClick = {
                         Log.d("MainActivity", "Iniciando Google Sign-In")
                         val signInIntent = googleSignInHelper.getSignInIntent()
@@ -259,6 +260,15 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                         Log.d("MainActivity", "Iniciando Google Sign-In desde registro")
                         val signInIntent = googleSignInHelper.getSignInIntent()
                         googleSignInLauncher.launch(signInIntent)
+                    }
+                )
+            }
+
+            composable("forgot_password") {
+                ForgotPasswordScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onSendResetLink = { email ->
+                        // Aquí iría la lógica para enviar el correo (ViewModel)
                     }
                 )
             }
@@ -392,4 +402,5 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
         }
     }
 }
+
 

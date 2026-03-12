@@ -1,5 +1,6 @@
 package com.example.pocketguard.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,6 +34,14 @@ import com.example.pocketguard.presentation.di.ServiceLocator
 import com.example.pocketguard.presentation.viewmodel.DashboardViewModel
 import com.example.pocketguard.presentation.viewmodel.PreferencesViewModel
 import com.example.pocketguard.ui.theme.*
+import android.Manifest
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 
 // Cambia la firma de HomeScreen para recibir el callback
 @Composable
@@ -83,6 +92,7 @@ fun HomeScreen(
         }
     }
 
+    RequestNotificationPermission()
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
@@ -865,6 +875,33 @@ fun ChartBar(label: String, fill: Float, isSelected: Boolean, onClick: () -> Uni
             color = if(isSelected) MaterialTheme.colorScheme.onBackground else TextGray,
             fontWeight = if(isSelected) FontWeight.Bold else FontWeight.Normal
         )
+    }
+}
+@Composable
+fun RequestNotificationPermission() {
+    val context = LocalContext.current
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            println("Permiso de notificaciones concedido")
+        } else {
+            println("Permiso de notificaciones denegado")
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!hasPermission) {
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
     }
 }
 
