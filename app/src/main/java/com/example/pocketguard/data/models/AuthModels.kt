@@ -1,47 +1,17 @@
-package com.example.pocketguard.data.models
-
-import kotlinx.serialization.SerialName
+﻿package com.example.pocketguard.data.models
 import kotlinx.serialization.Serializable
-
 /**
- * Request para registro de usuario
- * El backend espera: fullName, email, password
+ * NOTA: LoginRequest y RegisterRequest están en AuthRequest.kt
+ * AuthResponse está en AuthResponse.kt  
+ * Este archivo solo contiene modelos auxiliares deprecated
  */
-@Serializable
-data class RegisterRequest(
-    val fullName: String,
-    val email: String,
-    val password: String
-)
-
-/**
- * Request para login
- */
-@Serializable
-data class LoginRequest(
-    val email: String,
-    val password: String
-)
-
-/**
- * Response de autenticación (register/login)
- * El backend devuelve: {success, message, data: {accessToken, user}}
- */
-@Serializable
-data class AuthResponse(
-    val success: Boolean,
-    val message: String,
-    val data: AuthData
-)
-
 @Serializable
 data class AuthData(
     val accessToken: String,
     val user: UserData
 )
-
 /**
- * Datos del usuario
+ * Datos del usuario - deprecated, usar User.kt
  */
 @Serializable
 data class UserData(
@@ -52,28 +22,24 @@ data class UserData(
     val theme: String? = null,
     val language: String? = null
 )
-
 /**
- * Response de refresh token
+ * Response de refresh token - deprecated
  */
 @Serializable
 data class RefreshResponse(
     val token: String
 )
-
 /**
- * Response de logout
+ * Response de logout - deprecated
  */
 @Serializable
 data class LogoutResponse(
     val message: String
 )
-
 /**
- * Response de me (usuario actual)
+ * Response de me (usuario actual) - deprecated
  */
 @Serializable
 data class MeResponse(
     val user: UserData
 )
-
