@@ -193,11 +193,18 @@ fun ExpensesScreen(
             }
         },
         topBar = {
-            Box(modifier = Modifier.fillMaxWidth().background(GreenPrimary).padding(top = 40.dp, bottom = 20.dp, start = 20.dp, end = 20.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Column { Text("PocketGuard", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = White); Text("Gestor de Gastos", fontSize = 12.sp, color = White.copy(alpha = 0.8f)) }
-                    Box(modifier = Modifier.size(36.dp).background(White.copy(0.2f), CircleShape), contentAlignment = Alignment.Center) { Text("UD", color = White, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
-                }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(GreenPrimary)
+                    .padding(top = 40.dp, bottom = 20.dp, start = 20.dp, end = 20.dp)
+            ) {
+                Text(
+                    text = "Gastos",
+                    fontSize = 28.sp, // Tamaño grande para igualar la vista de Alertas
+                    fontWeight = FontWeight.Bold,
+                    color = White
+                )
             }
         }
     ) { paddingValues ->
