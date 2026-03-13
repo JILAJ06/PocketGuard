@@ -37,9 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.pocketguard.components.PaymentCard
 import com.example.pocketguard.ui.theme.*
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 // --- DATOS MOCK ---
@@ -128,8 +126,12 @@ fun NewSubscriptionModal(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        val date = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
-                        selectedDateDisplay = date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                        val calendar = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+                        calendar.timeInMillis = millis
+                        val year = calendar.get(java.util.Calendar.YEAR)
+                        val month = calendar.get(java.util.Calendar.MONTH) + 1
+                        val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+                        selectedDateDisplay = String.format("%02d/%02d/%04d", day, month, year)
                     }
                     showDatePicker = false
                 }) { Text("Aceptar", fontWeight = FontWeight.Bold, color = GreenPrimary) }

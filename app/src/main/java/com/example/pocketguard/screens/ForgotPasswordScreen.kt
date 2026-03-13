@@ -19,6 +19,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.pocketguard.components.PocketGuardTextField
 import com.example.pocketguard.data.models.AuthState
 import com.example.pocketguard.presentation.viewmodel.AuthViewModel
+import com.example.pocketguard.presentation.di.ServiceLocator
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,13 +29,20 @@ fun ForgotPasswordScreen(
     onBackClick: () -> Unit,
     onSuccess: () -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
     val authState by viewModel.authState.collectAsStateWithLifecycle()
     val validationErrors by viewModel.validationErrors.collectAsStateWithLifecycle()
+    val authRepository = ServiceLocator.getAuthRepository()
 
+    var email by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf("") }
     var showSuccessDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
     val isLoading = authState is AuthState.Loading
+
+    // If the account is a Google OAuth account, password reset via app/backend is not available
+    val isGoogleUser = authRepository.isGoogleUser()
 
     LaunchedEffect(authState) {
         when (authState) {
@@ -125,6 +134,25 @@ fun ForgotPasswordScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Mensaje informativo
+            if (message.isNotEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(12.dp),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
             // Mensaje de error
             if (errorMessage.isNotEmpty()) {
                 Card(
@@ -174,6 +202,12 @@ fun ForgotPasswordScreen(
             // Botón de enviar
             Button(
                 onClick = {
+                    if (isGoogleUser) {
+                        // Show message and avoid performing reset
+                        message = "No es posible restablecer contraseña para cuentas vinculadas a Google OAuth. Usa la configuración de Google para gestionar tu acceso."
+                        return@Button
+                    }
+
                     errorMessage = ""
                     viewModel.forgotPassword(email)
                 },
@@ -184,7 +218,7 @@ fun ForgotPasswordScreen(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 ),
-                enabled = !isLoading && email.isNotEmpty()
+                enabled = !isLoading && email.isNotEmpty() && !isGoogleUser
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
@@ -203,6 +237,30 @@ fun ForgotPasswordScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Mensaje informativo para usuarios de Google
+            if (isGoogleUser) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            "Cuenta enlazada a Google",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Tu cuenta está vinculada con Google. Para cambiar la contraseña, visita la configuración de tu cuenta Google (https://myaccount.google.com).",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             // Botón de volver
             TextButton(onClick = onBackClick) {
                 Text(
@@ -214,4 +272,3 @@ fun ForgotPasswordScreen(
         }
     }
 }
-

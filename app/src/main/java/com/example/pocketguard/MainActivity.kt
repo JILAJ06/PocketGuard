@@ -1,6 +1,9 @@
 package com.example.pocketguard
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -12,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -19,6 +23,7 @@ import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.example.pocketguard.components.BottomNavBar
 import com.example.pocketguard.presentation.di.ServiceLocator
+import com.example.pocketguard.presentation.viewmodel.AuthViewModel
 import com.example.pocketguard.presentation.viewmodel.LoginViewModel
 import com.example.pocketguard.presentation.viewmodel.PreferencesViewModel
 import com.example.pocketguard.presentation.viewmodel.RegisterViewModel
@@ -41,6 +46,9 @@ class MainActivity : ComponentActivity() {
 
         // Inicializar FCMTokenManager
         fcmTokenManager = FCMTokenManager(applicationContext)
+
+        // Solicitar permiso de notificaciones para Android 13+
+        requestNotificationPermission()
 
         // Inicializar FCM si hay sesión activa
         val sessionManager = ServiceLocator.getSessionManager()
@@ -74,6 +82,54 @@ class MainActivity : ComponentActivity() {
 
             PocketGuardTheme(darkTheme = darkTheme) {
                 PocketGuardNavigation(fcmTokenManager = fcmTokenManager)
+            }
+        }
+    }
+
+    /**
+     * Solicita el permiso de notificaciones para Android 13+ (API 33+)
+     */
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.d("MainActivity", "Solicitando permiso de notificaciones...")
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
+            } else {
+                Log.d("MainActivity", "Permiso de notificaciones ya concedido")
+            }
+        } else {
+            Log.d("MainActivity", "Android < 13, no se requiere solicitar permiso de notificaciones")
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == 1001) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Log.d("MainActivity", "✅ Permiso de notificaciones concedido")
+                // Inicializar FCM después de obtener el permiso
+                val sessionManager = ServiceLocator.getSessionManager()
+                if (sessionManager.isSessionActive() && !sessionManager.isTokenExpired()) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            fcmTokenManager.initializeFCM()
+                            Log.d("MainActivity", "FCM inicializado después de obtener permiso")
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "Error al inicializar FCM: ${e.message}", e)
+                        }
+                    }
+                }
+            } else {
+                Log.w("MainActivity", "❌ Permiso de notificaciones denegado")
             }
         }
     }
@@ -193,9 +249,6 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                         Log.d("MainActivity", "Iniciando Google Sign-In")
                         val signInIntent = googleSignInHelper.getSignInIntent()
                         googleSignInLauncher.launch(signInIntent)
-                    },
-                    onForgotPasswordClick = {
-                        navController.navigate("forgot_password")
                     }
                 )
             }
@@ -265,11 +318,14 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
             }
 
             composable("forgot_password") {
+                val authViewModel: AuthViewModel = viewModel(
+                    factory = ServiceLocator.getAuthViewModelFactory()
+                )
+
                 ForgotPasswordScreen(
+                    viewModel = authViewModel,
                     onBackClick = { navController.popBackStack() },
-                    onSendResetLink = { email ->
-                        // Aquí iría la lógica para enviar el correo (ViewModel)
-                    }
+                    onSuccess = { navController.popBackStack() }
                 )
             }
 
@@ -361,27 +417,12 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                 )
             }
 
-            composable("forgot_password") {
-                val authViewModel: com.example.pocketguard.presentation.viewmodel.AuthViewModel = viewModel(
-                    factory = ServiceLocator.getAuthViewModelFactory()
-                )
-                ForgotPasswordScreen(
-                    viewModel = authViewModel,
-                    onBackClick = {
-                        navController.popBackStack()
-                    },
-                    onSuccess = {
-                        navController.popBackStack()
-                    }
-                )
-            }
-
             composable(
                 route = "reset_password/{token}",
                 arguments = listOf(navArgument("token") { type = NavType.StringType })
             ) { backStackEntry ->
                 val token = backStackEntry.arguments?.getString("token") ?: ""
-                val authViewModel: com.example.pocketguard.presentation.viewmodel.AuthViewModel = viewModel(
+                val authViewModel: AuthViewModel = viewModel(
                     factory = ServiceLocator.getAuthViewModelFactory()
                 )
                 ResetPasswordScreen(

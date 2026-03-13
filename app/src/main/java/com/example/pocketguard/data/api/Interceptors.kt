@@ -19,11 +19,8 @@ class AuthInterceptor(private val context: Context) : Interceptor {
 
         Log.d("AuthInterceptor", "Request URL: $url")
 
-        // No agregar token a endpoints públicos
-        if (url.contains("/auth/login") ||
-            url.contains("/auth/register") ||
-            url.contains("/auth/google") ||
-            url.contains("/health")) {
+        // No agregar token a endpoints públicos de autenticación
+        if (isPublicAuthEndpoint(url) || url.contains("/health")) {
             Log.d("AuthInterceptor", "Endpoint público, no se agrega token")
             return chain.proceed(originalRequest)
         }
@@ -47,6 +44,15 @@ class AuthInterceptor(private val context: Context) : Interceptor {
             Log.e("AuthInterceptor", "Error en request: ${e.message}", e)
             throw e
         }
+    }
+
+    private fun isPublicAuthEndpoint(path: String): Boolean {
+        return path.contains("/auth/login") ||
+            path.contains("/auth/register") ||
+            path.contains("/auth/google") ||
+            path.contains("/auth/forgot-password") ||
+            path.contains("/auth/reset-password") ||
+            path.contains("/auth/refresh")
     }
 
     /**
@@ -83,4 +89,3 @@ class HttpLoggingInterceptor : Interceptor {
         return response
     }
 }
-

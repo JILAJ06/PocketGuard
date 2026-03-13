@@ -94,8 +94,13 @@ fun NewExpenseModal(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        val date = java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
-                        selectedDateDisplay = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                        // Convertir directamente sin zona horaria
+                        val calendar = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+                        calendar.timeInMillis = millis
+                        val year = calendar.get(java.util.Calendar.YEAR)
+                        val month = calendar.get(java.util.Calendar.MONTH) + 1 // Calendar.MONTH es 0-indexed
+                        val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+                        selectedDateDisplay = String.format("%04d-%02d-%02d", year, month, day)
                     }
                     showDatePicker = false
                 }) { Text("Aceptar", fontWeight = FontWeight.Bold, color = GreenPrimary) }

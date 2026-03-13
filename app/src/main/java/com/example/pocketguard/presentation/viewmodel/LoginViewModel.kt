@@ -4,13 +4,13 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.pocketguard.data.repository.AuthRepository
+import com.example.pocketguard.data.models.ValidationError
+import com.example.pocketguard.data.validators.ValidationManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import com.example.pocketguard.data.models.ValidationError
-import com.example.pocketguard.data.repository.AuthRepository
-import com.example.pocketguard.data.validators.ValidationManager
 
 class LoginViewModel(
     private val authRepository: AuthRepository
@@ -120,9 +120,9 @@ class LoginViewModel(
                             val errorMsg = when {
                                 authResult.statusCode == 500 -> {
                                     "Error del servidor (500). Verifica:\n" +
-                                    "1. Que el backend esté configurado con Google OAuth\n" +
-                                    "2. Que el GOOGLE_CLIENT_ID del backend coincida con el del frontend\n" +
-                                    "3. Los logs del backend para más detalles"
+                                            "1. Que el backend esté configurado con Google OAuth\n" +
+                                            "2. Que el GOOGLE_CLIENT_ID del backend coincida con el del frontend\n" +
+                                            "3. Los logs del backend para más detalles"
                                 }
                                 authResult.statusCode == 401 -> "Token de Google inválido o expirado"
                                 authResult.message.contains("Unable to resolve host") ||
@@ -190,4 +190,3 @@ class LoginViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
-

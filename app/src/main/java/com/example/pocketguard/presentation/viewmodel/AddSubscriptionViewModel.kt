@@ -9,6 +9,7 @@ import com.example.pocketguard.data.models.CreateSubscriptionRequest
 import com.example.pocketguard.data.models.Subscription
 import com.example.pocketguard.data.models.UpdateSubscriptionRequest
 import com.example.pocketguard.data.repository.SubscriptionsRepository
+import com.example.pocketguard.utils.DateUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -68,7 +69,9 @@ class AddSubscriptionViewModel(private val repository: SubscriptionsRepository) 
     fun createSubscription(
         serviceName: String,
         amount: Double,
-        nextPaymentDate: String,
+        year: Int,
+        month: Int,
+        day: Int,
         billingCycleId: Int,
         categoryId: String,
         cardId: String?,
@@ -78,10 +81,12 @@ class AddSubscriptionViewModel(private val repository: SubscriptionsRepository) 
             val finalCardId = cardId ?: cards.firstOrNull { it.is_default }?.card_id
             Log.d("AddSubscriptionViewModel", "createSubscription() - Servicio: $serviceName, CardId original: $cardId, CardId final: $finalCardId")
             _state.value = _state.value.copy(isLoading = true, errorMessage = "", isUnauthorized = false)
+            // Normalize date to ISO date string to prevent timezone shifting the date back by one
+            val isoDate = com.example.pocketguard.utils.DateUtils.localDateToIsoDate(year, month, day)
             val request = CreateSubscriptionRequest(
                 service_name = serviceName,
                 amount = amount,
-                next_payment_date = nextPaymentDate,
+                next_payment_date = isoDate,
                 billing_cycle_id = billingCycleId,
                 category_id = categoryId,
                 used_card_id = finalCardId
@@ -95,6 +100,40 @@ class AddSubscriptionViewModel(private val repository: SubscriptionsRepository) 
                 )
             }.onFailure { error ->
                 Log.e("AddSubscriptionViewModel", "createSubscription() - Error: ${error.message}")
+                val unauthorized = error is com.example.pocketguard.data.exceptions.AuthenticationException
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    errorMessage = if (unauthorized) "" else (error.message ?: "Error al crear suscripción"),
+                    isUnauthorized = unauthorized
+                )
+            }
+        }
+    }
+
+    // Backwards-compatible overload: accept nextPaymentDate as String (ISO date) for existing UI callers
+    fun createSubscription(
+        serviceName: String,
+        amount: Double,
+        nextPaymentDate: String,
+        billingCycleId: Int,
+        categoryId: String,
+        cardId: String?,
+        cards: List<com.example.pocketguard.data.models.Card> = emptyList()
+    ) {
+        viewModelScope.launch {
+            val finalCardId = cardId ?: cards.firstOrNull { it.is_default }?.card_id
+            _state.value = _state.value.copy(isLoading = true, errorMessage = "", isUnauthorized = false)
+            val request = CreateSubscriptionRequest(
+                service_name = serviceName,
+                amount = amount,
+                next_payment_date = nextPaymentDate,
+                billing_cycle_id = billingCycleId,
+                category_id = categoryId,
+                used_card_id = finalCardId
+            )
+            repository.createSubscription(request).onSuccess { subscription ->
+                _state.value = _state.value.copy(subscription = subscription, isLoading = false, isSuccess = true)
+            }.onFailure { error ->
                 val unauthorized = error is com.example.pocketguard.data.exceptions.AuthenticationException
                 _state.value = _state.value.copy(
                     isLoading = false,

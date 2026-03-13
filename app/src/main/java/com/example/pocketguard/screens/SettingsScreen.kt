@@ -105,9 +105,20 @@ fun SettingsScreen(
         categoriesViewModel.loadCategories()
     }
 
-    LaunchedEffect(state.isUnauthorized || cardsState.isUnauthorized || banksState.isUnauthorized || categoriesState.isUnauthorized) {
-        if (state.isUnauthorized || cardsState.isUnauthorized || banksState.isUnauthorized || categoriesState.isUnauthorized) {
+    // Evita cerrar sesión por errores parciales de módulos secundarios en Ajustes.
+    // Solo expira sesión cuando falla auth del endpoint principal de preferencias.
+    val unauthorizedNow = remember {
+        derivedStateOf { state.isUnauthorized }
+    }
+    var prevUnauthorized by remember { mutableStateOf(false) }
+
+    LaunchedEffect(unauthorizedNow.value) {
+        val current = unauthorizedNow.value
+        if (current && !prevUnauthorized) {
+            prevUnauthorized = true
             onAuthExpired()
+        } else {
+            prevUnauthorized = current
         }
     }
 
@@ -865,4 +876,3 @@ fun SettingsScreenDarkPreview() {
         SettingsScreen(onAuthExpired = {}, onLogout = {})
     }
 }
-

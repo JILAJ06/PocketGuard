@@ -232,7 +232,7 @@ class AuthRepository(
             val request = com.example.pocketguard.data.api.ForgotPasswordRequest(email)
             val response = authService.forgotPassword(request)
 
-            Log.d("AuthRepository", "forgotPassword() - Response success=${response.success}")
+            Log.d("AuthRepository", "forgotPassword() - Response success=${response.success}, statusCode=${response.statusCode}")
 
             if (response.success) {
                 Log.d("AuthRepository", "forgotPassword() - Solicitud exitosa")
@@ -241,8 +241,26 @@ class AuthRepository(
                 Log.e("AuthRepository", "forgotPassword() - Error: ${response.message}")
                 AuthResult.Error(response.message ?: "Error desconocido", response.statusCode)
             }
+        } catch (e: retrofit2.HttpException) {
+            Log.e("AuthRepository", "forgotPassword() - HttpException: ${e.code()} - ${e.message()}")
+            val errorMsg = when (e.code()) {
+                404 -> "Endpoint no encontrado. Verifica la configuración del backend."
+                500 -> "Error del servidor. Intenta más tarde."
+                503 -> "Servicio no disponible. El servidor puede estar caído."
+                else -> "Error del servidor (${e.code()}): ${e.message()}"
+            }
+            AuthResult.Error(errorMsg, e.code())
+        } catch (e: java.net.SocketTimeoutException) {
+            Log.e("AuthRepository", "forgotPassword() - Timeout: ${e.message}")
+            AuthResult.Error("Tiempo de espera agotado. Verifica tu conexión a internet.", null)
+        } catch (e: java.net.UnknownHostException) {
+            Log.e("AuthRepository", "forgotPassword() - UnknownHost: ${e.message}")
+            AuthResult.Error("No se pudo conectar al servidor. Verifica tu conexión a internet.", null)
+        } catch (e: java.net.ConnectException) {
+            Log.e("AuthRepository", "forgotPassword() - ConnectException: ${e.message}")
+            AuthResult.Error("No se pudo conectar al servidor. El servidor puede estar caído.", null)
         } catch (e: Exception) {
-            Log.e("AuthRepository", "forgotPassword() - Exception: ${e.message}", e)
+            Log.e("AuthRepository", "forgotPassword() - Exception: ${e.javaClass.simpleName} - ${e.message}", e)
             AuthResult.Error(e.message ?: "Error en la conexión", null)
         }
     }

@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import com.example.pocketguard.data.models.AuthState
 import com.example.pocketguard.data.models.AuthResult
 import com.example.pocketguard.data.models.User
@@ -227,16 +228,35 @@ class AuthViewModel(
         _authState.value = AuthState.Loading
 
         viewModelScope.launch {
-            when (val result = authRepository.forgotPassword(email)) {
-                is AuthResult.Success -> {
-                    _authState.value = AuthState.Idle
+            try {
+                // Agregar timeout de 30 segundos
+                val result = withTimeout(30000L) {
+                    authRepository.forgotPassword(email)
                 }
-                is AuthResult.Error -> {
-                    _authState.value = AuthState.Error(result.message)
+
+                when (result) {
+                    is AuthResult.Success -> {
+                        _authState.value = AuthState.Idle
+                    }
+                    is AuthResult.Error -> {
+                        val message = if (
+                            result.message.contains("google", ignoreCase = true) ||
+                            result.message.contains("oauth", ignoreCase = true)
+                        ) {
+                            "Esta cuenta está vinculada a Google OAuth. Cambia tu contraseña desde Google Account."
+                        } else {
+                            result.message
+                        }
+                        _authState.value = AuthState.Error(message)
+                    }
+                    is AuthResult.Loading -> {
+                        _authState.value = AuthState.Loading
+                    }
                 }
-                is AuthResult.Loading -> {
-                    _authState.value = AuthState.Loading
-                }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                _authState.value = AuthState.Error("Tiempo de espera agotado. Verifica tu conexión a internet o intenta más tarde.")
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error("Error: ${e.message}")
             }
         }
     }
@@ -266,16 +286,25 @@ class AuthViewModel(
         _authState.value = AuthState.Loading
 
         viewModelScope.launch {
-            when (val result = authRepository.resetPassword(token, newPassword)) {
-                is AuthResult.Success -> {
-                    _authState.value = AuthState.Idle
+            try {
+                val result = withTimeout(30000L) {
+                    authRepository.resetPassword(token, newPassword)
                 }
-                is AuthResult.Error -> {
-                    _authState.value = AuthState.Error(result.message)
+                when (result) {
+                    is AuthResult.Success -> {
+                        _authState.value = AuthState.Idle
+                    }
+                    is AuthResult.Error -> {
+                        _authState.value = AuthState.Error(result.message)
+                    }
+                    is AuthResult.Loading -> {
+                        _authState.value = AuthState.Loading
+                    }
                 }
-                is AuthResult.Loading -> {
-                    _authState.value = AuthState.Loading
-                }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                _authState.value = AuthState.Error("Tiempo de espera agotado. Verifica tu conexión a internet o intenta más tarde.")
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error("Error: ${e.message}")
             }
         }
     }
@@ -292,4 +321,3 @@ class AuthViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
-

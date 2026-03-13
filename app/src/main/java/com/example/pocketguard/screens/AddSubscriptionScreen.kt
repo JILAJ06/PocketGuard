@@ -37,6 +37,7 @@ import com.example.pocketguard.presentation.viewmodel.CategoriesViewModel
 import com.example.pocketguard.ui.theme.*
 import java.time.Instant
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -137,8 +138,13 @@ fun AddSubscriptionScreen(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        val date = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
-                        dateDisplay = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                        // Convertir directamente sin zona horaria usando Calendar
+                        val calendar = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+                        calendar.timeInMillis = millis
+                        val year = calendar.get(java.util.Calendar.YEAR)
+                        val month = calendar.get(java.util.Calendar.MONTH) + 1 // Calendar.MONTH es 0-indexed
+                        val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+                        dateDisplay = String.format("%04d-%02d-%02d", year, month, day)
                     }
                     showDatePicker = false
                 }) { Text("Aceptar", color = GreenPrimary, fontWeight = FontWeight.Bold) }
