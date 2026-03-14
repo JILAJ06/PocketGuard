@@ -1,7 +1,6 @@
 package com.example.pocketguard.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -12,16 +11,22 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.pocketguard.components.PocketGuardTextField
 import com.example.pocketguard.components.SocialButton
 import com.example.pocketguard.presentation.viewmodel.RegisterViewModel
-import com.example.pocketguard.ui.theme.PocketGuardTheme
 
 @Composable
 fun SignUpScreen(
@@ -30,6 +35,9 @@ fun SignUpScreen(
     onLoginLinkClick: () -> Unit,
     onGoogleClick: () -> Unit
 ) {
+    val termsUrl = "https://pocketguard-pi.vercel.app/terminos"
+    val uriHandler = LocalUriHandler.current
+
     val formState by viewModel.formState.collectAsStateWithLifecycle()
     val isSuccess by viewModel.isSuccess.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
@@ -168,13 +176,35 @@ fun SignUpScreen(
                 colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary),
                 enabled = !formState.isLoading
             )
-            Text(
-                text = "Acepto el Aviso de Privacidad y Términos.",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.clickable(enabled = !formState.isLoading) {
-                    viewModel.onAcceptedTermsChanged(!formState.acceptedTerms)
+            val termsText = buildAnnotatedString {
+                append("Acepto el Aviso de Privacidad y ")
+                withLink(
+                    link = LinkAnnotation.Url(
+                        url = termsUrl,
+                        styles = TextLinkStyles(
+                            style = SpanStyle(
+                        color = MaterialTheme.colorScheme.primary,
+                        textDecoration = TextDecoration.Underline,
+                        fontWeight = FontWeight.SemiBold
+                            )
+                        ),
+                        linkInteractionListener = { uriHandler.openUri(termsUrl) }
+                    )
+                ) {
+                    append("Términos")
                 }
+                append(".")
+            }
+
+            Text(
+                text = termsText,
+                style = LocalTextStyle.current.copy(
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.secondary
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 4.dp)
             )
         }
 
