@@ -296,7 +296,20 @@ fun NewSubscriptionModal(
 
                 // 6. Fecha
                 ModalLabel("Próximo Cargo", Icons.Outlined.Event)
-                Box(modifier = Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant).clickable { showDatePicker = true }.padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+                        .clickable { showDatePicker = true }
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(text = selectedDateDisplay, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, fontSize = 16.sp)
                         Icon(Icons.Default.CalendarToday, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
@@ -372,8 +385,20 @@ fun SubNewCategoryDialog(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text("Nombre", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Box(modifier = Modifier.fillMaxWidth().height(50.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
-                        if (catName.isEmpty()) Text("Ej: Viajes...", color = TextGray.copy(alpha = 0.5f))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (catName.isEmpty()) Text("Ej: Viajes...", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                         BasicTextField(value = catName, onValueChange = { catName = it }, textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp), modifier = Modifier.fillMaxWidth())
                     }
                 }
@@ -406,7 +431,7 @@ fun SubNewCategoryDialog(
 
                 Button(
                     onClick = {
-                        // Si hay callback de API, usarlo para crear en el backend
+                        // Sí hay callback de API, usarlo para crear en el backend
                         val hexColor = String.format("#%06X", (selectedColor.toArgb() and 0xFFFFFF))
                         val iconName = com.example.pocketguard.utils.IconMapper.getNameFromIcon(selectedIcon)
                         onCreateCategoryAPI?.invoke(catName, hexColor, iconName)
@@ -459,8 +484,20 @@ fun ModalLabel(text: String, icon: ImageVector? = null) {
 
 @Composable
 fun ModalInput(value: String, onValueChange: (String) -> Unit, placeholder: String) {
-    Box(modifier = Modifier.fillMaxWidth().height(56.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
-        if (value.isEmpty()) Text(placeholder, color = TextGray.copy(alpha = 0.5f), fontSize = 14.sp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        if (value.isEmpty()) Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = 14.sp)
         BasicTextField(value = value, onValueChange = onValueChange, textStyle = TextStyle(fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth())
     }
 }
