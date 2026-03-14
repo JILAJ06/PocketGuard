@@ -3,6 +3,7 @@ package com.example.pocketguard.data.api
 import android.content.Context
 import android.util.Log
 import com.example.pocketguard.constants.ApiConstants
+import com.example.pocketguard.data.storage.TokenManager
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
@@ -59,11 +60,8 @@ class AuthInterceptor(private val context: Context) : Interceptor {
      * Obtener el token de acceso guardado en SharedPreferences
      */
     private fun getAccessToken(): String {
-        val sharedPreferences = context.getSharedPreferences(
-            ApiConstants.SHARED_PREFERENCES_NAME,
-            Context.MODE_PRIVATE
-        )
-        return sharedPreferences.getString(ApiConstants.ACCESS_TOKEN_KEY, "") ?: ""
+        val tokenManager = TokenManager(context)
+        return tokenManager.getAccessToken() ?: ""
     }
 }
 

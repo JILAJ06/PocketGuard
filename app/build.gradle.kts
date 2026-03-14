@@ -76,6 +76,8 @@ dependencies {
 
     // --- DATASTORE ---
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+    // Encrypted SharedPreferences (secure storage)
+    implementation("androidx.security:security-crypto:1.1.0")
 
     // Import the Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:34.9.0"))

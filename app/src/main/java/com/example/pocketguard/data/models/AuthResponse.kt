@@ -12,12 +12,16 @@ data class ApiResponse<T>(
 // Respuesta específica para Login/Register
 data class AuthResponse(
     val accessToken: String,
-    val user: User
+    val user: User,
+    // El backend ahora también devuelve refreshToken en las respuestas de autenticación
+    val refreshToken: String? = null
 )
 
 // Respuesta para Refresh Token
 data class RefreshTokenResponse(
-    val accessToken: String
+    val accessToken: String,
+    // El endpoint de refresh puede rotar el refreshToken y devolver uno nuevo
+    val refreshToken: String? = null
 )
 
 // Respuesta para obtener perfil del usuario

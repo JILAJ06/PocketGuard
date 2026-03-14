@@ -24,6 +24,7 @@ class AuthRepository(
             if (response.success && response.data != null) {
                 Log.d("AuthRepository", "login() - Token recibido, guardando...")
                 tokenManager.saveAccessToken(response.data.accessToken)
+                response.data.refreshToken?.let { tokenManager.saveRefreshToken(it) }
                 tokenManager.saveUserId(response.data.user.id)
                 tokenManager.saveIsGoogleAuth(false) // Marcar como login normal
                 Log.d("AuthRepository", "login() - Usuario guardado: ${response.data.user.id}")
@@ -70,6 +71,7 @@ class AuthRepository(
 
             if (response.success && response.data != null) {
                 tokenManager.saveAccessToken(response.data.accessToken)
+                response.data.refreshToken?.let { tokenManager.saveRefreshToken(it) }
                 tokenManager.saveUserId(response.data.user.id)
                 AuthResult.Success(response.data)
             } else {
@@ -100,6 +102,7 @@ class AuthRepository(
             if (response.success && response.data != null) {
                 Log.d("AuthRepository", "googleMobileAuth() - Token recibido, guardando...")
                 tokenManager.saveAccessToken(response.data.accessToken)
+                response.data.refreshToken?.let { tokenManager.saveRefreshToken(it) }
                 tokenManager.saveUserId(response.data.user.id)
                 tokenManager.saveIsGoogleAuth(true) // Marcar como usuario de Google
                 Log.d("AuthRepository", "googleMobileAuth() - Usuario logueado: ${response.data.user.email}")
@@ -151,6 +154,7 @@ class AuthRepository(
 
             if (response.success && response.data != null) {
                 tokenManager.saveAccessToken(response.data.accessToken)
+                response.data.refreshToken?.let { tokenManager.saveRefreshToken(it) }
                 AuthResult.Success(response.data.accessToken)
             } else {
                 AuthResult.Error(response.message ?: "Error desconocido", response.statusCode)

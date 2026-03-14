@@ -3,16 +3,33 @@ package com.example.pocketguard.data.storage
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.pocketguard.constants.ApiConstants
+import android.util.Log
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
 
 /**
  * Gestor centralizado para almacenar y recuperar datos de autenticación
  */
 class TokenManager(context: Context) {
 
-    private val sharedPreferences: SharedPreferences = context.getSharedPreferences(
-        ApiConstants.SHARED_PREFERENCES_NAME,
-        Context.MODE_PRIVATE
-    )
+    private val sharedPreferences: SharedPreferences = try {
+        // Crear o recuperar MasterKey para EncryptedSharedPreferences
+        val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+        EncryptedSharedPreferences.create(
+            ApiConstants.SHARED_PREFERENCES_NAME,
+            masterKeyAlias,
+            context,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    } catch (e: Exception) {
+        // Si falla (por ejemplo en tests o en dispositivos antiguos), usar SharedPreferences normal
+        Log.w("TokenManager", "EncryptedSharedPreferences unavailable, falling back to plain SharedPreferences: ${e.message}")
+        context.getSharedPreferences(
+            ApiConstants.SHARED_PREFERENCES_NAME,
+            Context.MODE_PRIVATE
+        )
+    }
 
     /**
      * Guardar el token de acceso
