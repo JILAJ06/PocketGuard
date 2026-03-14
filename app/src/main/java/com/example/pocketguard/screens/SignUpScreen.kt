@@ -177,23 +177,20 @@ fun SignUpScreen(
                 enabled = !formState.isLoading
             )
             val termsText = buildAnnotatedString {
-                append("Acepto el Aviso de Privacidad y ")
                 withLink(
                     link = LinkAnnotation.Url(
                         url = termsUrl,
                         styles = TextLinkStyles(
                             style = SpanStyle(
-                        color = MaterialTheme.colorScheme.primary,
-                        textDecoration = TextDecoration.Underline,
-                        fontWeight = FontWeight.SemiBold
+                                color = MaterialTheme.colorScheme.secondary,
+                                textDecoration = TextDecoration.Underline
                             )
                         ),
                         linkInteractionListener = { uriHandler.openUri(termsUrl) }
                     )
                 ) {
-                    append("Términos")
+                    append("Acepto el Aviso de Privacidad y Términos.")
                 }
-                append(".")
             }
 
             Text(
