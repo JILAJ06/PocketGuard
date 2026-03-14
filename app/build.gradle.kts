@@ -1,15 +1,12 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.gms.google-services")
 }
 
 android {
     namespace = "com.example.pocketguard"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.pocketguard"
@@ -42,12 +39,14 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.foundation)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -55,4 +54,39 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Material Design 3 e Íconos
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.navigation.compose)
+
+    // --- NETWORKING ---
+    implementation(libs.retrofit.lib)
+    implementation(libs.retrofit.gson)
+    implementation(libs.okhttp.lib)
+    implementation(libs.okhttp.logging)
+    implementation(libs.gson.lib)
+
+    // --- COROUTINES ---
+    implementation(libs.coroutines.core)
+    implementation(libs.coroutines.android)
+
+    // --- SERIALIZATION ---
+    implementation(libs.kotlinx.serialization)
+
+    // --- DATASTORE ---
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // Import the Firebase BoM
+    implementation(platform("com.google.firebase:firebase-bom:34.9.0"))
+
+    // Firebase Cloud Messaging para notificaciones push
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-analytics")
+
+    // Google Sign-In (Play Services)
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
+
+    // Activity Result API
+    implementation("androidx.activity:activity-compose:1.8.2")
 }
