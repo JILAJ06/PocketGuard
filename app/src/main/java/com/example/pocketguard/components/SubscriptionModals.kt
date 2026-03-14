@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -115,6 +116,7 @@ fun NewSubscriptionModal(
     val datePickerState = rememberDatePickerState()
     val scrollState = rememberScrollState()
     val cycles = listOf("Diario", "Semanal", "Mensual", "Anual")
+    val baseInputBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = if (isSystemInDarkTheme()) 0.8f else 0.5f)
 
     val modalTitle = if (initialName.isNotEmpty()) "Editar Suscripción" else "Nueva Suscripción"
     val modalSubtitle = if (initialName.isNotEmpty()) "Actualiza los detalles" else "Agrega un nuevo servicio"
@@ -263,14 +265,14 @@ fun NewSubscriptionModal(
                 // 4. Monto
                 ModalLabel("Monto", Icons.Outlined.AttachMoney)
                 Box(modifier = Modifier.fillMaxWidth().height(56.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)).border(
-                    width = if (priceError != null && price.isNotEmpty()) 1.dp else 0.dp,
-                    color = if (priceError != null && price.isNotEmpty()) ErrorRed else Color.Transparent,
+                    width = 1.dp,
+                    color = if (priceError != null && price.isNotEmpty()) ErrorRed else baseInputBorderColor,
                     shape = RoundedCornerShape(16.dp)
                 ).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { priceFocusRequester.requestFocus() }.padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        Text("$ ", fontWeight = FontWeight.Bold, color = TextGray)
+                        Text("$ ", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Box(modifier = Modifier.weight(1f)) {
-                            if (price.isEmpty()) Text("0.00", color = TextGray.copy(alpha = 0.5f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            if (price.isEmpty()) Text("0.00", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             BasicTextField(value = price, onValueChange = { price = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), textStyle = TextStyle(fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold), modifier = Modifier.fillMaxWidth().focusRequester(priceFocusRequester))
                         }
                     }
@@ -286,8 +288,8 @@ fun NewSubscriptionModal(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     cycles.forEach { cycle ->
                         val isSelected = selectedCycle == cycle
-                        Box(modifier = Modifier.weight(1f).height(45.dp).clip(RoundedCornerShape(12.dp)).background(if (isSelected) GreenPrimary else MaterialTheme.colorScheme.surfaceVariant).clickable { selectedCycle = cycle }, contentAlignment = Alignment.Center) {
-                            Text(text = cycle, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (isSelected) White else TextGray)
+                        Box(modifier = Modifier.weight(1f).height(45.dp).clip(RoundedCornerShape(12.dp)).border(1.dp, if (isSelected) GreenPrimary else baseInputBorderColor, RoundedCornerShape(12.dp)).background(if (isSelected) GreenPrimary else MaterialTheme.colorScheme.surfaceVariant).clickable { selectedCycle = cycle }, contentAlignment = Alignment.Center) {
+                            Text(text = cycle, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (isSelected) White else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -504,10 +506,12 @@ fun ModalInput(value: String, onValueChange: (String) -> Unit, placeholder: Stri
 
 @Composable
 fun BigCategoryItem(data: SubCategoryData, isSelected: Boolean, onClick: () -> Unit) {
+    val categoryBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = if (isSystemInDarkTheme()) 0.8f else 0.5f)
+
     Box(
         modifier = Modifier
             .aspectRatio(1f)
-            .border(width = if (isSelected) 2.dp else 1.dp, color = if (isSelected) GreenPrimary else MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp))
+            .border(width = if (isSelected) 2.dp else 1.dp, color = if (isSelected) GreenPrimary else categoryBorderColor, shape = RoundedCornerShape(16.dp))
             .background(if (isSelected) GreenPrimary.copy(alpha = 0.05f) else MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
             .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() },
