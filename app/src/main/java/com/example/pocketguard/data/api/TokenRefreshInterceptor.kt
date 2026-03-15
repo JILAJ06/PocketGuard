@@ -1,7 +1,9 @@
 package com.example.pocketguard.data.api
 
 import android.content.Context
+import android.util.Log
 import com.example.pocketguard.data.storage.TokenManager
+import com.example.pocketguard.constants.ApiConstants
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
@@ -19,7 +21,9 @@ class TokenRefreshInterceptor(
         val originalRequest = chain.request()
         val path = originalRequest.url.encodedPath
 
-        val token = tokenManager.getAccessToken()
+        try {
+
+            val token = tokenManager.getAccessToken()
         // If this is a public auth endpoint (login/refresh/etc), do not try to add/refresh here
         if (isPublicAuthEndpoint(path)) {
             return chain.proceed(originalRequest)
@@ -33,10 +37,10 @@ class TokenRefreshInterceptor(
         var response = chain.proceed(requestWithToken)
 
         // If unauthorized and not an auth public endpoint, try refresh flow
-        if (response.code == 401 && !isPublicAuthEndpoint(path)) {
-            response.close()
+            if (response.code == 401 && !isPublicAuthEndpoint(path)) {
+                response.close()
 
-            synchronized(this) {
+                synchronized(this) {
                 // Check if another thread already refreshed
                 val latestToken = tokenManager.getAccessToken()
                 if (!latestToken.isNullOrEmpty() && latestToken != token) {
@@ -52,13 +56,16 @@ class TokenRefreshInterceptor(
                     return chain.proceed(originalRequest)
                 }
 
-                try {
+                    try {
                     val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
                     val json = JSONObject().put("refreshToken", refreshToken).toString()
                     val body = json.toRequestBody(mediaType)
 
+                    // Build the refresh URL using the configured BASE_URL to avoid duplicating or
+                    // dropping the /api/v1 segment when manipulating the original request URL.
+                    val refreshUrl = ApiConstants.BASE_URL + "auth/refresh"
                     val refreshRequest = originalRequest.newBuilder()
-                        .url(originalRequest.url.newBuilder().encodedPath("/api/v1/auth/refresh").build())
+                        .url(refreshUrl)
                         .post(body)
                         .header("Content-Type", "application/json")
                         .build()
@@ -84,13 +91,18 @@ class TokenRefreshInterceptor(
                     } else {
                         refreshResponse.close()
                     }
-                } catch (e: IOException) {
-                    // Network error during refresh — fall through
-                }
+                    } catch (e: IOException) {
+                        // Network error during refresh — fall through
+                        Log.w("TokenRefreshInterceptor", "IOException during token refresh: ${e.message}")
+                    }
             }
         }
-
-        return response
+            return response
+        } catch (e: Exception) {
+            // Catch any unexpected exception to avoid crashing the app from the interceptor
+            Log.e("TokenRefreshInterceptor", "Unexpected error in interceptor: ${e.message}", e)
+            return chain.proceed(originalRequest)
+        }
     }
 
     private fun isPublicAuthEndpoint(path: String): Boolean {

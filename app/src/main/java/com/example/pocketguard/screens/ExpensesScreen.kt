@@ -40,6 +40,29 @@ import com.example.pocketguard.presentation.viewmodel.CategoriesViewModel
 import com.example.pocketguard.presentation.viewmodel.ExpensesViewModel
 import com.example.pocketguard.ui.theme.*
 import androidx.compose.ui.tooling.preview.Preview
+import android.util.Log
+
+// Helper: safe date display (expects yyyy-MM-dd or similar). Returns e.g. MM-dd or original safe string.
+private fun safeDisplayDate(dateStr: String?): String {
+    if (dateStr.isNullOrEmpty()) return ""
+    return try {
+        if (dateStr.length >= 10) {
+            dateStr.substring(5, 10).replace("-", "-")
+        } else dateStr
+    } catch (e: Exception) {
+        dateStr
+    }
+}
+
+// Helper: safe color parse, fallback to a neutral gray if invalid
+private fun safeParseColor(hex: String?, fallback: String = "#95A5A6"): Color {
+    val toUse = if (hex.isNullOrEmpty()) fallback else hex
+    return try {
+        Color(android.graphics.Color.parseColor(toUse))
+    } catch (e: Exception) {
+        Color(android.graphics.Color.parseColor(fallback))
+    }
+}
 
 data class ExpenseUI(
     val id: String,
@@ -103,18 +126,24 @@ fun ExpensesScreen(
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
 
     val categoryItems: List<ExpenseCategoryData> = remember(categoriesState.categories) {
-        categoriesState.categories.map { category ->
-            ExpenseCategoryData(
-                id = category.id,
-                name = category.name,
-                icon = Icons.Outlined.Category,
-                color = Color(android.graphics.Color.parseColor(category.color_hex ?: "#95A5A6"))
-            )
+        try {
+            categoriesState.categories.map { category ->
+                ExpenseCategoryData(
+                    id = category.id,
+                    name = category.name,
+                    icon = Icons.Outlined.Category,
+                    color = safeParseColor(category.color_hex)
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("ExpensesScreen", "Error mapping categories to UI: ${e.message}", e)
+            emptyList()
         }
     }
 
     val expenses = remember(state.expenses, categoriesState.categories) {
-        state.expenses.map { expense ->
+        try {
+            state.expenses.map { expense ->
             val currentCategory = categoriesState.categories.firstOrNull { it.name == expense.categoryName }
             val categoryColor = currentCategory?.color_hex ?: expense.categoryColor
             val categoryIcon = if (currentCategory != null) {
@@ -129,10 +158,14 @@ fun ExpensesScreen(
                 category = expense.categoryName,
                 amount = "-$${String.format("%.2f", expense.amount)}",
                 amountValue = expense.amount,
-                date = expense.expenseDate.substring(5, 10).replace("-", "-"),
+                date = safeDisplayDate(expense.expenseDate),
                 icon = categoryIcon,
-                color = Color(android.graphics.Color.parseColor(categoryColor))
+                color = safeParseColor(categoryColor)
             )
+            }
+        } catch (e: Exception) {
+            Log.e("ExpensesScreen", "Error mapping expenses to UI: ${e.message}", e)
+            emptyList()
         }
     }
 

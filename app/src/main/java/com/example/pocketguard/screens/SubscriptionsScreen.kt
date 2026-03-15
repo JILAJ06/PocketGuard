@@ -33,6 +33,31 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import androidx.compose.ui.tooling.preview.Preview
 
+// Safe parsing helpers to avoid crashes from malformed dates or colors
+private fun safeParseLocalDate(dateStr: String?): java.time.LocalDate? {
+    if (dateStr.isNullOrEmpty()) return null
+    return try {
+        java.time.LocalDate.parse(dateStr)
+    } catch (e: Exception) {
+        try {
+            // Try common alternative formats
+            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+            java.time.LocalDate.parse(dateStr, formatter)
+        } catch (ex: Exception) {
+            null
+        }
+    }
+}
+
+private fun safeParseColor(hex: String?, fallback: String = "#4A90E2"): Color {
+    val toUse = if (hex.isNullOrEmpty()) fallback else hex
+    return try {
+        Color(android.graphics.Color.parseColor(toUse))
+    } catch (e: Exception) {
+        Color(android.graphics.Color.parseColor(fallback))
+    }
+}
+
 /**
  * Obtener icono de categoría desde el campo icon_name guardado en el backend
  * Si no existe, usa mapeo por nombre de categoría como fallback
@@ -166,7 +191,7 @@ fun SubscriptionsScreen(
                 id = card.card_id,
                 name = if (card.alias.isNotEmpty()) card.alias else card.bank_name,
                 last4 = card.last_4_digits ?: "",
-                color = Color(android.graphics.Color.parseColor(card.color_hex ?: "#4A90E2"))
+                color = safeParseColor(card.color_hex)
             )
         }
     }
@@ -178,7 +203,7 @@ fun SubscriptionsScreen(
                 id = cat.id, // Agregar ID para referencia
                 name = cat.name,
                 icon = getCategoryIcon(cat), // Pasar objeto completo
-                color = Color(android.graphics.Color.parseColor(cat.color_hex ?: "#4A90E2"))
+                color = safeParseColor(cat.color_hex)
             )
         }
     }
@@ -194,34 +219,37 @@ fun SubscriptionsScreen(
             }
 
             // Calcular días correctamente - si es negativo, calcular próximo pago
-            val actualDaysLeft = if (sub.days_until_payment < 0) {
-                // La suscripción venció, calcular cuántos días faltan para el PRÓXIMO pago
-                val today = LocalDate.now()
-                val lastPayment = LocalDate.parse(sub.next_payment_date)
+            val actualDaysLeft = try {
+                if (sub.days_until_payment < 0) {
+                    val today = LocalDate.now()
+                    val lastPayment = safeParseLocalDate(sub.next_payment_date) ?: today
 
-                // Calcular siguiente fecha de pago según el ciclo
-                val nextPayment = when (sub.billing_cycle.lowercase()) {
-                    "daily", "diario" -> lastPayment.plusDays(1)
-                    "weekly", "semanal" -> lastPayment.plusWeeks(1)
-                    "monthly", "mensual" -> lastPayment.plusMonths(1)
-                    "yearly", "anual" -> lastPayment.plusYears(1)
-                    else -> lastPayment.plusMonths(1) // Default mensual
-                }
-
-                // Si aún sigue vencido, seguir sumando ciclos hasta llegar al futuro
-                var calculatedNext = nextPayment
-                while (calculatedNext.isBefore(today)) {
-                    calculatedNext = when (sub.billing_cycle.lowercase()) {
-                        "daily", "diario" -> calculatedNext.plusDays(1)
-                        "weekly", "semanal" -> calculatedNext.plusWeeks(1)
-                        "monthly", "mensual" -> calculatedNext.plusMonths(1)
-                        "yearly", "anual" -> calculatedNext.plusYears(1)
-                        else -> calculatedNext.plusMonths(1)
+                    // Calcular siguiente fecha de pago según el ciclo
+                    var nextPayment = when (sub.billing_cycle.lowercase()) {
+                        "daily", "diario" -> lastPayment.plusDays(1)
+                        "weekly", "semanal" -> lastPayment.plusWeeks(1)
+                        "monthly", "mensual" -> lastPayment.plusMonths(1)
+                        "yearly", "anual" -> lastPayment.plusYears(1)
+                        else -> lastPayment.plusMonths(1)
                     }
-                }
 
-                java.time.temporal.ChronoUnit.DAYS.between(today, calculatedNext).toInt()
-            } else {
+                    // Si aún sigue vencido, seguir sumando ciclos hasta llegar al futuro
+                    while (nextPayment.isBefore(today)) {
+                        nextPayment = when (sub.billing_cycle.lowercase()) {
+                            "daily", "diario" -> nextPayment.plusDays(1)
+                            "weekly", "semanal" -> nextPayment.plusWeeks(1)
+                            "monthly", "mensual" -> nextPayment.plusMonths(1)
+                            "yearly", "anual" -> nextPayment.plusYears(1)
+                            else -> nextPayment.plusMonths(1)
+                        }
+                    }
+
+                    java.time.temporal.ChronoUnit.DAYS.between(today, nextPayment).toInt()
+                } else {
+                    sub.days_until_payment
+                }
+            } catch (e: Exception) {
+                // If any parse error occurs, fallback to the original days_until_payment
                 sub.days_until_payment
             }
 
@@ -234,7 +262,7 @@ fun SubscriptionsScreen(
                 categoryName = sub.category_name,
                 daysLeft = actualDaysLeft,
                 icon = categoryIcon,
-                color = Color(android.graphics.Color.parseColor(categoryColor)),
+                color = safeParseColor(categoryColor),
                 cardAlias = sub.card_alias,
                 cardLastDigits = sub.card_last_digits
             )
@@ -708,4 +736,3 @@ fun SubscriptionsScreenDarkPreview() {
         )
     }
 }
-
