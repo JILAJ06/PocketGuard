@@ -50,6 +50,7 @@ class AuthRepository(
             if (response.success && response.data != null) {
                 Log.d("AuthRepository", "register() - Token recibido, guardando...")
                 tokenManager.saveAccessToken(response.data.accessToken)
+                response.data.refreshToken?.let { tokenManager.saveRefreshToken(it) }
                 tokenManager.saveUserId(response.data.user.id)
                 tokenManager.saveIsGoogleAuth(false) // Marcar como registro normal
                 Log.d("AuthRepository", "register() - Usuario registrado: ${response.data.user.id}")

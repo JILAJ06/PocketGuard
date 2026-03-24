@@ -11,9 +11,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -22,6 +25,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.example.pocketguard.components.BottomNavBar
+import com.example.pocketguard.data.models.AuthResult
 import com.example.pocketguard.presentation.di.ServiceLocator
 import com.example.pocketguard.presentation.viewmodel.AuthViewModel
 import com.example.pocketguard.presentation.viewmodel.LoginViewModel
@@ -154,9 +158,43 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
         }
     }
 
-    // Verificar si la sesión está activa Y el token no ha expirado
-    val isValidSession = sessionManager.isSessionActive() && !sessionManager.isTokenExpired()
-    val startDestination = if (isValidSession) "inicio" else "login"
+    var isBootstrappingSession by remember { mutableStateOf(true) }
+    var startDestination by remember { mutableStateOf("login") }
+
+    // En arranque, intenta refresh silencioso si el access token expiró pero existe refresh token.
+    LaunchedEffect(Unit) {
+        val hasSession = sessionManager.isSessionActive()
+        if (!hasSession) {
+            startDestination = "login"
+            isBootstrappingSession = false
+            return@LaunchedEffect
+        }
+
+        if (!sessionManager.isTokenExpired()) {
+            startDestination = "inicio"
+            isBootstrappingSession = false
+            return@LaunchedEffect
+        }
+
+        val hasRefreshToken = !ServiceLocator.getTokenManager().getRefreshToken().isNullOrEmpty()
+        if (!hasRefreshToken) {
+            sessionManager.clearSession()
+            startDestination = "login"
+            isBootstrappingSession = false
+            return@LaunchedEffect
+        }
+
+        when (ServiceLocator.getAuthRepository().refreshToken()) {
+            is AuthResult.Success -> startDestination = "inicio"
+            is AuthResult.Error -> {
+                sessionManager.clearSession()
+                startDestination = "login"
+            }
+            is AuthResult.Loading -> startDestination = "login"
+        }
+
+        isBootstrappingSession = false
+    }
 
     val preferencesViewModel: PreferencesViewModel = viewModel(
         factory = ServiceLocator.getPreferencesViewModelFactory()
@@ -166,6 +204,16 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
     val currentRoute = navBackStackEntry?.destination?.route
 
     val showBottomBar = currentRoute in listOf("inicio", "suscripciones", "gastos", "alertas", "configuracion")
+
+    if (isBootstrappingSession) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
 
     Scaffold(
         bottomBar = {
