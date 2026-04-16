@@ -49,13 +49,26 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // Logo de la aplicación
         Icon(
             imageVector = Icons.Default.AttachMoney,
-            contentDescription = "Logo",
+            contentDescription = "PocketGuard Logo",
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(64.dp)
+            modifier = Modifier.size(80.dp)
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        // Nombre de la aplicación
+        Text(
+            text = "PocketGuard",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            fontSize = 28.sp
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        // Texto de bienvenida
         Text(
             text = "Bienvenido de nuevo",
             style = MaterialTheme.typography.headlineMedium,

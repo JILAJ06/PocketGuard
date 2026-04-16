@@ -2,7 +2,7 @@ package com.example.pocketguard.constants
 
 object ApiConstants {
     // API en producción (Railway)
-    const val BASE_URL = "https://pocketguard-backend-production-d6a7.up.railway.app/api/v1/"
+    const val BASE_URL = "https://web-production-43b24.up.railway.app/api/v1/"
 
     // Para desarrollo local, usa esto (descomenta y comenta la línea de arriba):
     // const val BASE_URL = "http://192.168.110.230:3001/api/v1/"
