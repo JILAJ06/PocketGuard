@@ -40,6 +40,7 @@ import androidx.compose.ui.window.Dialog
 import com.example.pocketguard.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 
 // Estructura de datos
 data class ExpenseCategoryData(val id: String, val name: String, val icon: ImageVector, val color: Color)
@@ -60,6 +61,10 @@ fun NewExpenseModal(
 ) {
     var description by remember { mutableStateOf(initialDescription) }
     var amount by remember { mutableStateOf(initialAmount) }
+    var descriptionError by remember { mutableStateOf<String?>(null) }
+    var amountError by remember { mutableStateOf<String?>(null) }
+    var categoryError by remember { mutableStateOf<String?>(null) }
+    var dateError by remember { mutableStateOf<String?>(null) }
 
     // Preseleccionar categoría si estamos editando
     var selectedCategoryIndex by remember {
@@ -78,6 +83,37 @@ fun NewExpenseModal(
 
     var selectedDateDisplay by remember {
         mutableStateOf(initialDate)
+    }
+
+    LaunchedEffect(description, amount, categories, selectedCategoryIndex, selectedDateDisplay) {
+        descriptionError = when {
+            description.isBlank() -> "La descripción es requerida"
+            description.trim().length < 2 -> "La descripción es muy corta"
+            description.trim().length > 100 -> "La descripción es muy larga"
+            else -> null
+        }
+
+        val amountValue = amount.replace(",", ".").toDoubleOrNull()
+        amountError = when {
+            amount.isBlank() -> "El monto es requerido"
+            amountValue == null -> "Ingresa un monto válido"
+            amountValue <= 0 -> "El monto debe ser mayor a 0"
+            amountValue > 1_000_000 -> "El monto es demasiado alto"
+            else -> null
+        }
+
+        categoryError = if (categories.getOrNull(selectedCategoryIndex) == null) {
+            "Selecciona una categoría"
+        } else {
+            null
+        }
+
+        dateError = try {
+            LocalDate.parse(selectedDateDisplay, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+            null
+        } catch (_: DateTimeParseException) {
+            "Selecciona una fecha válida"
+        }
     }
 
     val datePickerState = rememberDatePickerState()
@@ -156,6 +192,9 @@ fun NewExpenseModal(
                 // 1. Descripción
                 ExpenseLabel("Descripción", Icons.Outlined.Description)
                 ExpenseInput(value = description, onValueChange = { description = it }, placeholder = "Ej: Café, Uber, Supermercado...")
+                if (descriptionError != null && description.isNotEmpty()) {
+                    Text(descriptionError!!, color = ErrorRed, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -179,6 +218,9 @@ fun NewExpenseModal(
                         NewCategorySquareButton(onClick = { showNewCategoryDialog = true })
                     }
                 }
+                if (categoryError != null && categories.isNotEmpty()) {
+                    Text(categoryError!!, color = ErrorRed, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -188,7 +230,7 @@ fun NewExpenseModal(
                     modifier = Modifier.fillMaxWidth().height(56.dp)
                         .border(
                             width = 1.dp,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            color = if (amountError != null && amount.isNotEmpty()) ErrorRed else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                             shape = RoundedCornerShape(16.dp)
                         )
                         .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
@@ -209,6 +251,9 @@ fun NewExpenseModal(
                         }
                     }
                 }
+                if (amountError != null && amount.isNotEmpty()) {
+                    Text(amountError!!, color = ErrorRed, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+                }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
@@ -220,7 +265,7 @@ fun NewExpenseModal(
                         .height(56.dp)
                         .border(
                             width = 1.dp,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            color = if (dateError != null) ErrorRed else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                             shape = RoundedCornerShape(16.dp)
                         )
                         .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
@@ -233,6 +278,9 @@ fun NewExpenseModal(
                         Icon(Icons.Default.CalendarToday, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
                     }
                 }
+                if (dateError != null) {
+                    Text(dateError!!, color = ErrorRed, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+                }
 
                 Spacer(modifier = Modifier.height(40.dp))
 
@@ -240,13 +288,12 @@ fun NewExpenseModal(
                 Button(
                     onClick = {
                         val selected = categories.getOrNull(selectedCategoryIndex)
-                        if (selected != null) {
-                            onSave(description, amount, selected.id, selectedDateDisplay)
-                        }
+                        if (selected == null || descriptionError != null || amountError != null || dateError != null) return@Button
+                        onSave(description.trim(), amount.replace(",", "."), selected.id, selectedDateDisplay)
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
-                    enabled = amount.isNotEmpty() && description.isNotEmpty() && categories.isNotEmpty()
+                    enabled = descriptionError == null && amountError == null && dateError == null && categories.getOrNull(selectedCategoryIndex) != null
                 ) {
                     Text(buttonText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }

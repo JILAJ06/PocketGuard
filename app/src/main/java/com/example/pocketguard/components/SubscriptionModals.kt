@@ -40,6 +40,7 @@ import com.example.pocketguard.components.PaymentCard
 import com.example.pocketguard.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 
 // --- DATOS MOCK ---
 data class SubCategoryData(
@@ -77,6 +78,8 @@ fun NewSubscriptionModal(
     // Validaciones
     var nameError by remember { mutableStateOf<String?>(null) }
     var priceError by remember { mutableStateOf<String?>(null) }
+    var categoryError by remember { mutableStateOf<String?>(null) }
+    var dateError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(name) {
         nameError = when {
@@ -107,6 +110,23 @@ fun NewSubscriptionModal(
                 if (index != -1) index else 0
             } else 0
         )
+    }
+
+    LaunchedEffect(categories, selectedCategoryIndex) {
+        categoryError = if (categories.getOrNull(selectedCategoryIndex) == null) {
+            "Selecciona una categoría"
+        } else {
+            null
+        }
+    }
+
+    LaunchedEffect(selectedDateDisplay) {
+        dateError = try {
+            LocalDate.parse(selectedDateDisplay, DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+            null
+        } catch (_: DateTimeParseException) {
+            "Selecciona una fecha válida"
+        }
     }
 
     // Lógica adicional (Diálogos, Foco, Calendario)
@@ -243,6 +263,9 @@ fun NewSubscriptionModal(
                         }
                     }
                 }
+                if (categoryError != null && categories.isNotEmpty()) {
+                    Text(categoryError!!, color = ErrorRed, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -304,7 +327,7 @@ fun NewSubscriptionModal(
                         .height(56.dp)
                         .border(
                             width = 1.dp,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            color = if (dateError != null) ErrorRed else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                             shape = RoundedCornerShape(16.dp)
                         )
                         .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
@@ -317,26 +340,35 @@ fun NewSubscriptionModal(
                         Icon(Icons.Default.CalendarToday, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
                     }
                 }
+                if (dateError != null) {
+                    Text(dateError!!, color = ErrorRed, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+                }
 
                 Spacer(modifier = Modifier.height(40.dp))
 
                 // Botón Guardar
                 Button(
                     onClick = {
+                        val selectedCategory = categories.getOrNull(selectedCategoryIndex)
+                        if (selectedCategory == null || nameError != null || priceError != null || dateError != null) {
+                            return@Button
+                        }
+
                         isSaving = true
                         onSave(
-                            name,
-                            price,
-                            categories[selectedCategoryIndex].name,
+                            name.trim(),
+                            price.replace(",", "."),
+                            selectedCategory.name,
                             selectedCycle,
                             selectedDateDisplay,
                             if (selectedCardId.isEmpty()) null else selectedCardId
                         )
+                        isSaving = false
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
-                    enabled = !isSaving && name.isNotEmpty() && price.isNotEmpty() && nameError == null && priceError == null
+                    enabled = !isSaving && nameError == null && priceError == null && categoryError == null && dateError == null
                 ) {
                     if (isSaving) {
                         CircularProgressIndicator(color = White, modifier = Modifier.size(24.dp))
