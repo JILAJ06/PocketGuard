@@ -110,7 +110,7 @@ fun SettingsScreen(
     val unauthorizedNow = remember {
         derivedStateOf { state.isUnauthorized }
     }
-    var prevUnauthorized by remember { mutableStateOf(false) }
+    var prevUnauthorized by remember { mutableStateOf(unauthorizedNow.value) }
 
     LaunchedEffect(unauthorizedNow.value) {
         val current = unauthorizedNow.value

@@ -21,7 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
@@ -73,9 +72,12 @@ class MainActivity : ComponentActivity() {
                 factory = ServiceLocator.getPreferencesViewModelFactory()
             )
             val preferencesState by preferencesViewModel.state.collectAsStateWithLifecycle()
+            val sessionManager = ServiceLocator.getSessionManager()
 
             LaunchedEffect(Unit) {
-                preferencesViewModel.loadPreferences()
+                if (sessionManager.isSessionActive()) {
+                    preferencesViewModel.loadPreferences()
+                }
             }
 
             val darkTheme = when (preferencesState.preferences?.theme) {
@@ -144,16 +146,6 @@ class MainActivity : ComponentActivity() {
 fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
     val navController = rememberNavController()
     val sessionManager = ServiceLocator.getSessionManager()
-
-    fun navigateToLogin() {
-        sessionManager.clearSession()
-        navController.navigate("login") {
-            popUpTo(navController.graph.findStartDestination().id) {
-                inclusive = true
-            }
-            launchSingleTop = true
-        }
-    }
 
     // Función para inicializar FCM desde composables
     val initializeFCM = remember {
@@ -393,13 +385,23 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                     onNavigateToSettings = {
                         navController.navigate("configuracion")
                     },
-                    onAuthExpired = { navigateToLogin() }
+                    onAuthExpired = {
+                        sessionManager.clearSession()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
 
             composable("gastos") {
                 ExpensesScreen(
-                    onAuthExpired = { navigateToLogin() }
+                    onAuthExpired = {
+                        sessionManager.clearSession()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
 
@@ -407,7 +409,12 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                 SubscriptionsScreen(
                     onAddClick = { navController.navigate("add_subscription") },
                     onEditClick = { id -> navController.navigate("add_subscription?id=$id") },
-                    onAuthExpired = { navigateToLogin() }
+                    onAuthExpired = {
+                        sessionManager.clearSession()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
 
@@ -423,20 +430,41 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                     subscriptionId = subscriptionId,
                     onBackClick = { navController.popBackStack() },
                     onSaveClick = { navController.popBackStack() },
-                    onAuthExpired = { navigateToLogin() }
+                    onAuthExpired = {
+                        sessionManager.clearSession()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
 
             composable("alertas") {
                 AlertsScreen(
-                    onAuthExpired = { navigateToLogin() }
+                    onAuthExpired = {
+                        sessionManager.clearSession()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
 
             composable("configuracion") {
                 SettingsScreen(
-                    onAuthExpired = { navigateToLogin() },
-                    onLogout = { navigateToLogin() }
+                    preferencesViewModel = preferencesViewModel,
+                    onAuthExpired = {
+                        sessionManager.clearSession()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onLogout = {
+                        sessionManager.clearSession()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
 
@@ -453,18 +481,12 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                     viewModel = authViewModel,
                     onBackClick = {
                         navController.navigate("login") {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                inclusive = true
-                            }
-                            launchSingleTop = true
+                            popUpTo(0) { inclusive = true }
                         }
                     },
                     onSuccess = {
                         navController.navigate("login") {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                inclusive = true
-                            }
-                            launchSingleTop = true
+                            popUpTo(0) { inclusive = true }
                         }
                     }
                 )
