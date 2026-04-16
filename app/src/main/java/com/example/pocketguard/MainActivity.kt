@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
@@ -143,6 +144,16 @@ class MainActivity : ComponentActivity() {
 fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
     val navController = rememberNavController()
     val sessionManager = ServiceLocator.getSessionManager()
+
+    fun navigateToLogin() {
+        sessionManager.clearSession()
+        navController.navigate("login") {
+            popUpTo(navController.graph.findStartDestination().id) {
+                inclusive = true
+            }
+            launchSingleTop = true
+        }
+    }
 
     // Función para inicializar FCM desde composables
     val initializeFCM = remember {
@@ -382,23 +393,13 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                     onNavigateToSettings = {
                         navController.navigate("configuracion")
                     },
-                    onAuthExpired = {
-                        sessionManager.clearSession()
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
+                    onAuthExpired = { navigateToLogin() }
                 )
             }
 
             composable("gastos") {
                 ExpensesScreen(
-                    onAuthExpired = {
-                        sessionManager.clearSession()
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
+                    onAuthExpired = { navigateToLogin() }
                 )
             }
 
@@ -406,12 +407,7 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                 SubscriptionsScreen(
                     onAddClick = { navController.navigate("add_subscription") },
                     onEditClick = { id -> navController.navigate("add_subscription?id=$id") },
-                    onAuthExpired = {
-                        sessionManager.clearSession()
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
+                    onAuthExpired = { navigateToLogin() }
                 )
             }
 
@@ -427,41 +423,20 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                     subscriptionId = subscriptionId,
                     onBackClick = { navController.popBackStack() },
                     onSaveClick = { navController.popBackStack() },
-                    onAuthExpired = {
-                        sessionManager.clearSession()
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
+                    onAuthExpired = { navigateToLogin() }
                 )
             }
 
             composable("alertas") {
                 AlertsScreen(
-                    onAuthExpired = {
-                        sessionManager.clearSession()
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
+                    onAuthExpired = { navigateToLogin() }
                 )
             }
 
             composable("configuracion") {
                 SettingsScreen(
-                    preferencesViewModel = preferencesViewModel,
-                    onAuthExpired = {
-                        sessionManager.clearSession()
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    },
-                    onLogout = {
-                        sessionManager.clearSession()
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
+                    onAuthExpired = { navigateToLogin() },
+                    onLogout = { navigateToLogin() }
                 )
             }
 
@@ -478,12 +453,18 @@ fun PocketGuardNavigation(fcmTokenManager: FCMTokenManager) {
                     viewModel = authViewModel,
                     onBackClick = {
                         navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
                         }
                     },
                     onSuccess = {
                         navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
                         }
                     }
                 )
